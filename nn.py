@@ -3,10 +3,11 @@ Phase 4 Neural Network Counterpart (PyTorch MLP)
 Stratified Group-Safe Split + Hyperparameter Tuned for High R^2
 """
 
+import time
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
 
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -15,8 +16,15 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
 from nn_model import add_engineered_features, feature_columns, TabularResNet, predict, permutation_importance
 
+# The model is tiny (14 inputs, 128 hidden); letting torch spread each op across all
+# cores costs more in thread contention than it gains. 4 threads beats 16 by ~2x here.
+torch.set_num_threads(4)
 torch.manual_seed(RANDOM_STATE)
 np.random.seed(RANDOM_STATE)
+
+EPOCHS = 200
+BATCH_SIZE = 128
+LR = 2e-3
 
 # ---------------------------------------------------------------
 # 1. Load Data, Feature Engineering & candidate-grouped split
@@ -42,25 +50,37 @@ for target_col in target_cols:
     X_test = scaler.transform(test_df[feature_cols].values)
     y_test = test_df[target_col].values.astype(np.float32).reshape(-1, 1)
 
-    train_ds = TensorDataset(torch.tensor(X_train, dtype=torch.float32), torch.tensor(y_train))
-    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+    X_train_t = torch.tensor(X_train, dtype=torch.float32)
+    y_train_t = torch.tensor(y_train)
+    n_train = len(X_train_t)
 
     # Initialize Model
     model = TabularResNet(input_dim=len(feature_cols), hidden_dim=128, num_blocks=2, dropout=0.1)
     criterion = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+    optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
-    # Train
-    model.train()
-    for epoch in range(200):
-        for bx, by in train_loader:
+    # Train. Manual index batching instead of DataLoader: the per-batch DataLoader
+    # overhead was a large fraction of step time for a model this small.
+    shuffle_gen = torch.Generator().manual_seed(RANDOM_STATE)
+    t0 = time.perf_counter()
+    for epoch in range(1, EPOCHS + 1):
+        model.train()
+        perm = torch.randperm(n_train, generator=shuffle_gen)
+        epoch_loss = 0.0
+        for i in range(0, n_train, BATCH_SIZE):
+            idx = perm[i:i + BATCH_SIZE]
+            if len(idx) < 2:  # BatchNorm needs >1 sample
+                continue
             optimizer.zero_grad()
-            out = model(bx)
-            loss = criterion(out, by)
+            loss = criterion(model(X_train_t[idx]), y_train_t[idx])
             loss.backward()
             optimizer.step()
+            epoch_loss += loss.item() * len(idx)
         scheduler.step()
+        if epoch % 50 == 0 or epoch == 1:
+            print(f"[{target_col}] epoch {epoch:3d}/{EPOCHS}  train MSE = {epoch_loss / n_train:.4f}  "
+                  f"({time.perf_counter() - t0:.0f}s elapsed)")
 
     # Predict & Evaluate
     preds = predict(model, X_test)

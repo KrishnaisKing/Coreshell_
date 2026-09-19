@@ -33,7 +33,7 @@ writing/overwriting `csv/rs_training_data_real_candidates.csv` in place:
 python Prepare_real_candidates.py   # csv/synthetic_rs_dataset_fixed__1_.csv -> csv/rs_training_data_real_candidates.csv
 python Latticmatch.py               # optional: adds lattice_mismatch_pct column (needs MP_API_KEY + network)
 python kmeans_xgboost_train.py      # ~20s. -> xgb_model_*.json (root), csv/predictions_xgb_*.csv, csv/cv_scores_xgb.csv
-python nn.py                        # SLOW (200 epochs x 3 targets). -> nn_model_*.pt, csv/predictions_nn_*.csv, csv/permutation_importance_nn_*.csv
+python nn.py                        # ~100s total (3 targets). -> nn_model_*.pt, csv/predictions_nn_*.csv, csv/permutation_importance_nn_*.csv
 python nn_permutation_importance.py # computes csv/permutation_importance_nn_*.csv for already-saved nn_model_*.pt without retraining
 python plot2.py                     # xgb 4-panel dashboard -> plots/plot_1..4_*.png
 python plot3.py                     # nn 4-panel dashboard -> plots/nn_plot_1..4_*.png
@@ -55,9 +55,11 @@ split, with the zero-overlap assert) used by both training scripts and `nn_permu
 split logic only in `split_utils.py` — `nn_permutation_importance.py` depends on reproducing the exact
 test set of a previous `nn.py` run and verifies this against `csv/predictions_nn_*.csv` before computing.
 
-**No NN model exists for `log10_retention_tau_s`** because that training run was manually terminated
-(nn.py is slow); only hysteresis and on/off ratio NN artifacts exist. `plot5.py` skips the NN retention
-plot with a message rather than failing.
+**NN training speed:** `nn.py` uses batch size 128, `torch.set_num_threads(4)` and manual index batching
+(no DataLoader). The original batch-32 / 16-thread / DataLoader setup took ~2.7 min per target because
+per-step overhead and thread contention dominated for a model this small — 4 threads beat 16 by ~2x. The
+larger batch also improved held-out R² on all three targets, not just speed. Don't "optimize" back to
+small batches or all cores without re-measuring.
 
 ## Architecture
 
@@ -92,9 +94,12 @@ have no single natural lattice parameter). Requires live MP API access; merges i
   `BatchNorm`/`SiLU`/`Dropout` residual blocks → linear head, trained with AdamW + cosine annealing.
   It uses a feature set that isn't identical to XGBoost's — it adds `exp(dE_LUMO_eV)`, `exp(dE_HOMO_eV)`,
   `log10(Nt_cm3)` — so R²/MAE between the two model families aren't directly comparable.
-- As of the last run, no NN model/predictions exist for `log10_retention_tau_s` (`nn_model_*.pt` and
-  `predictions_nn_*.csv` are only present for `hysteresis_window_V` and `log10_on_off_ratio`) — check
-  whether that run completed before assuming NN retention-time results exist.
+- Held-out R² (same 758-candidate test set): hysteresis XGB 0.925 / NN 0.916; on/off ratio XGB 0.976 /
+  NN 0.978; retention XGB 0.815 / NN 0.942. Retention is where the models diverge most — XGB's GroupKFold
+  CV R² for it is 0.977, so its 0.815 test score is a CV-vs-test gap the other targets don't show.
+- Permutation importance shows the NN relies on different features per target: trap density (`log10_Nt`)
+  dominates hysteresis and on/off ratio, but retention is driven by the band offsets (`dE_HOMO_eV`,
+  `dE_LUMO_eV` and their `exp_` transforms), with trap density barely registering.
 
 **`plot*.py`** — all read `rs_training_data_real_candidates.csv` and the `predictions_{xgb,nn}_*.csv`
 files; none retrain anything. `plot2.py`/`plot3.py` produce the 4-panel xgb/nn dashboards, `plot4.py`/
