@@ -40,6 +40,7 @@ python plot3.py                     # nn 4-panel dashboard -> plots/nn_plot_1..4
 python plot4.py                     # per-target parity/residuals -> plots/{model_type}_{target}_parity.png / _residuals.png
 python plot5.py                     # per-target feature importance -> plots/xgb_{target}_importance.png / nn_{target}_importance.png
 python plot.py                      # standalone exploratory 2x3 grid, shows interactively (no savefig)
+python split_strategy_comparison.py # trains XGBoost under 3 split strategies -> csv/split_strategy_comparison.csv, plots/split_strategy_comparison.png
 ```
 
 There is no build step, linter, or test command in this repo.
@@ -49,11 +50,33 @@ synthetic data. All plotted numbers are computed: XGBoost importances come from 
 the saved model JSON, NN importances from permutation importance (mean drop in test R², 10 repeats) in
 `csv/permutation_importance_nn_*.csv`, and CV bars from `csv/cv_scores_xgb.csv`.
 
-**Shared modules:** `split_utils.py` holds `load_dataset()` and `candidate_split()` (the candidate-grouped
-split, with the zero-overlap assert) used by both training scripts and `nn_permutation_importance.py`.
+**Shared modules:** `split_utils.py` holds `load_dataset()` and three split strategies, all with signature
+`(df, test_frac=0.25, random_state=...) -> (train_df, test_df)`:
+- `candidate_split()` — the pipeline's default (candidate-pair-grouped, retention-stratified via `qcut`
+  into 3 bins), used by `kmeans_xgboost_train.py` and `nn.py`. Has a zero-overlap assert on `candidate_id`.
+- `random_row_split()` — deliberately leaky row-level random split, comparison baseline only.
+- `leave_materials_out_split()` — holds out entire materials (union of `formula_core`/`formula_shell`;
+  840 of 1444 distinct materials appear in both roles) so a held-out material never appears in training at
+  all, in either role. Stricter than `candidate_split()`, which only guarantees an unseen *combination* of
+  otherwise-seen materials. Test fraction is a side effect of how densely held-out materials are reused
+  across pairs, not a tunable target.
+
 `nn_model.py` holds `TabularResNet`, the NN feature engineering, and `permutation_importance()`. Keep the
 split logic only in `split_utils.py` — `nn_permutation_importance.py` depends on reproducing the exact
 test set of a previous `nn.py` run and verifies this against `csv/predictions_nn_*.csv` before computing.
+
+**`split_strategy_comparison.py`** trains one XGBoost model per (strategy × target) — 9 fits — and plots
+test R² grouped by target. Result, and the reason it's *not* a clean "grouped split is honest, random
+split is leaky" story: for `hysteresis_window_V` and `log10_on_off_ratio`, R² is close across all three
+strategies (0.92–0.99). For `log10_retention_tau_s` it isn't: random 0.992, grouped-by-pair 0.815,
+leave-materials-out 0.982. This gap is **not** primarily a leakage effect — it's a target-distribution
+effect. `candidate_split()`'s retention-stratification forces the rare short-retention mode (~22% of the
+population) into the test set at close to its natural rate (26.8%), while `leave_materials_out_split()`'s
+uniform random material sampling happens to reproduce the natural distribution almost exactly (22.4%).
+Short-retention candidates are the harder-to-generalize regime, so the grouped split's test set is
+intrinsically tougher independent of any leakage question. **Do not read cross-strategy R² differences as
+purely a leakage signal without checking the test set's target distribution first** — verified via
+`leave_materials_out_split(df)[1]['log10_retention_tau_s']` vs `candidate_split(df)[1][...]` histograms.
 
 **NN training speed:** `nn.py` uses batch size 128, `torch.set_num_threads(4)` and manual index batching
 (no DataLoader). The original batch-32 / 16-thread / DataLoader setup took ~2.7 min per target because

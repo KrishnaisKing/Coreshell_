@@ -1,0 +1,10 @@
+strategy,target,r2,mae,n_train_rows,n_test_rows
+random (leaky baseline),hysteresis_window_V,0.9439649128156791,0.06464502252303057,6000,2000
+random (leaky baseline),log10_on_off_ratio,0.9911107112156056,0.04297236121939843,6000,2000
+random (leaky baseline),log10_retention_tau_s,0.9919725733112199,0.26536166159620517,6000,2000
+grouped-by-pair (pipeline default),hysteresis_window_V,0.9251205442373635,0.08142156588944015,4968,3032
+grouped-by-pair (pipeline default),log10_on_off_ratio,0.9756216216697362,0.06547559609134257,4968,3032
+grouped-by-pair (pipeline default),log10_retention_tau_s,0.8152772045287703,1.1039950243329801,4968,3032
+leave-materials-out,hysteresis_window_V,0.9382937677172775,0.06780150468066595,4584,3416
+leave-materials-out,log10_on_off_ratio,0.9881393767150357,0.05034518410202943,4584,3416
+leave-materials-out,log10_retention_tau_s,0.9817651303079329,0.3872455639746142,4584,3416
