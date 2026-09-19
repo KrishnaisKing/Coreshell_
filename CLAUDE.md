@@ -185,6 +185,68 @@ leave-one-material-out** held-out set specifically (not the current candidate-pa
 requires an actual measured core-shell RS dataset, which does not currently exist anywhere in this repo —
 everything here traces back to the LHS-sampled simulator output (`synthetic_rs_dataset_fixed__1_.csv`).
 
+## Fix/validation roadmap (tiered by priority)
+
+Update this checklist's status markers as work lands — don't let it go stale. `[x]` done, `[~]` partial,
+`[ ]` not started.
+
+**Tier 0 — blocking correctness issues (fix before anything else; on `main`):**
+- [x] Hardcoded fake numbers in plot scripts (`plot.py`'s CV bars, NN feature-importance panels) —
+  fixed, `657124f`.
+- [x] Missing NN retention-time model (run had been manually terminated) — trained, `5ca45bd`.
+- [ ] Inverted Type I→III `hysteresis_window_V` ordering (contradicts band-confinement theory) — **open,
+  blocked on asking faculty how `synthetic_rs_dataset_fixed__1_.csv` was generated**; can't be root-caused
+  from the data alone (see "Verified data/pipeline caveats" below).
+
+**Tier 1 — core validation gaps (needed before any accuracy claim is credible; on `core-validation-gaps`,
+not yet merged to `main`):**
+- [x] Leave-materials-out test (not just leave-one-*pair*-out) — `leave_materials_out_split()`, `05477ff`.
+- [x] Split-strategy comparison figure (random vs. grouped vs. LOMO) — `split_strategy_comparison.py`,
+  `05477ff`.
+- [ ] **Decide what to do about the redundant features** — `dE_LUMO_eV`, `dE_HOMO_eV`, and the
+  `band_align_*` one-hots all encode the same underlying signal (confirmed to floating-point precision).
+  Not started; needs a decision, not just an implementation: drop the one-hots and keep the continuous
+  offsets, drop the offsets and keep the categorical, or keep both deliberately (e.g. to test whether tree
+  models "rediscover" the band-alignment rule themselves) and document why.
+- [x] Real permutation importance for the NN (was a hardcoded placeholder) — done as part of the Tier 0
+  cleanup, `657124f`.
+- [~] **Stratify splits by `band_alignment`** — half done. The inner 5-fold CV in
+  `kmeans_xgboost_train.py` now uses `StratifiedGroupKFold` on `band_alignment` (`92780cd`), but the
+  **outer split** (`candidate_split()` in `split_utils.py`, which decides which 758 candidates actually
+  become the held-out test set) is still stratified only by retention bin — `band_alignment` plays no role
+  in choosing who goes into test, so the ~14%-share minority classes (Type I "core confines shell") could
+  still be over/under-represented in test by chance.
+- Also fixed here, surfaced by a direct CV audit rather than being on the original list (`92780cd`):
+  - [x] CV was blind to the retention extrapolation regime (CV interpolates, the outer test set
+    extrapolates over offset-space clusters) — quantified in `retention_extrapolation_check.py`.
+  - [x] NN had no validation split or early stopping (fixed 200 epochs, no evidence it was the right
+    number) — added, with a warmup period so patience doesn't fire during the LR schedule's noisy start.
+  - [~] Test-set contamination from hyperparameter development (max_depth etc. were tuned by observing
+    the seed-42 test set) — partially mitigated: `repeated_split_evaluation.py` validates the *current*
+    frozen hyperparameters against 10 unseen seeds, but any *future* re-tuning reintroduces the same
+    contamination unless it's checked the same way.
+
+**Tier 2 — physics-rigor checks from the publication doc (not started):**
+- [ ] Formalize the monotonicity sanity checks (hysteresis vs. trap density/barrier height, on/off ratio
+  vs. shell thickness, retention vs. barrier height) as a saved, reproducible script — currently these were
+  only checked ad hoc in conversation, not committed anywhere.
+- [ ] Multicollinearity check (VIF) across the full feature set — only pairwise Pearson correlations have
+  been checked so far, not a proper VIF pass.
+- [ ] Uncertainty quantification (quantile regression, ensembles, or a GP on a subset) — nothing in the
+  pipeline currently produces a confidence interval alongside a point prediction, which matters most for
+  the stated end use (ranking candidates for synthesis).
+
+**Tier 3 — blocked on external input:**
+- [ ] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — no measured core-shell RS
+  dataset exists anywhere in this repo to benchmark against.
+
+**Tier 4 — doc's optional/"if space allows" items (not started):**
+- [ ] Residual-by-input-region plot (flag where error concentrates, e.g. thin shells, high trap density).
+- [ ] Learning curves (does performance still climb with more data, or plateau?).
+- [ ] Applicability-domain/novelty detection, for screening genuinely new candidates outside the training
+  distribution.
+- [ ] Confusion matrix for `band_alignment` — not applicable unless it becomes a predicted target itself.
+
 ## Verified data/pipeline caveats (do not assume these are fixed without re-checking)
 
 These were confirmed against the actual data, not just asserted by the doc — re-verify if the underlying
