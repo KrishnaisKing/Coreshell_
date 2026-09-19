@@ -1,0 +1,4 @@
+target,best_epoch,stopped_epoch,best_val_r2
+hysteresis_window_V,136,166,0.9364345669746399
+log10_on_off_ratio,181,200,0.9963337779045105
+log10_retention_tau_s,156,186,0.9949653148651123

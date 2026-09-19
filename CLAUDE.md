@@ -41,6 +41,8 @@ python plot4.py                     # per-target parity/residuals -> plots/{mode
 python plot5.py                     # per-target feature importance -> plots/xgb_{target}_importance.png / nn_{target}_importance.png
 python plot.py                      # standalone exploratory 2x3 grid, shows interactively (no savefig)
 python split_strategy_comparison.py # trains XGBoost under 3 split strategies -> csv/split_strategy_comparison.csv, plots/split_strategy_comparison.png
+python retention_extrapolation_check.py # confirms/quantifies WHY retention drops under the grouped split -> csv/retention_extrapolation_check.csv, plots/retention_extrapolation_check.png
+python repeated_split_evaluation.py # re-evaluates the fixed XGBoost hyperparams under 10 unseen seeds -> csv/repeated_split_evaluation.csv, plots/repeated_split_evaluation.png (~35s)
 ```
 
 There is no build step, linter, or test command in this repo.
@@ -66,17 +68,39 @@ split logic only in `split_utils.py` — `nn_permutation_importance.py` depends 
 test set of a previous `nn.py` run and verifies this against `csv/predictions_nn_*.csv` before computing.
 
 **`split_strategy_comparison.py`** trains one XGBoost model per (strategy × target) — 9 fits — and plots
-test R² grouped by target. Result, and the reason it's *not* a clean "grouped split is honest, random
-split is leaky" story: for `hysteresis_window_V` and `log10_on_off_ratio`, R² is close across all three
-strategies (0.92–0.99). For `log10_retention_tau_s` it isn't: random 0.992, grouped-by-pair 0.815,
-leave-materials-out 0.982. This gap is **not** primarily a leakage effect — it's a target-distribution
-effect. `candidate_split()`'s retention-stratification forces the rare short-retention mode (~22% of the
-population) into the test set at close to its natural rate (26.8%), while `leave_materials_out_split()`'s
-uniform random material sampling happens to reproduce the natural distribution almost exactly (22.4%).
-Short-retention candidates are the harder-to-generalize regime, so the grouped split's test set is
-intrinsically tougher independent of any leakage question. **Do not read cross-strategy R² differences as
-purely a leakage signal without checking the test set's target distribution first** — verified via
-`leave_materials_out_split(df)[1]['log10_retention_tau_s']` vs `candidate_split(df)[1][...]` histograms.
+test R² grouped by target. `hysteresis_window_V` and `log10_on_off_ratio` are stable across all three
+strategies (0.92–0.99). `log10_retention_tau_s` is not: random 0.992, grouped-by-pair 0.815,
+leave-materials-out 0.982.
+
+**Why retention drops under the grouped split — confirmed, not guessed (`retention_extrapolation_check.py`):**
+it's feature-space extrapolation, not primarily the target-distribution skew an earlier version of this
+note claimed. `candidate_split()` clusters candidates by `(dE_LUMO_eV, dE_HOMO_eV)` — the only 2 of the 4
+intended clustering columns present in this dataset — and holds out whole clusters. Permutation importance
+(`csv/permutation_importance_nn_log10_retention_tau_s.csv`) shows retention is driven almost entirely by
+those same two features, while hysteresis/on-off ratio are driven by trap density, which is independent of
+cluster membership. So holding out whole offset-space clusters is a real extrapolation test for retention
+and a near-irrelevant one for the other two targets — matching exactly which target the comparison figure
+flags. Verified directly: grouped-by-pair test candidates sit ~2x farther from their nearest training
+candidate in scaled offset-space than leave-materials-out's (mean distance 0.111 vs 0.058), and within the
+grouped test set, distance-to-nearest-train correlates with retention error (Pearson r=0.25, Spearman
+r=0.31) — the farthest half of test candidates has 2.7x the mean absolute error of the nearest half (1.62
+vs 0.59). The test-set retention distribution is also mildly skewed toward the harder short-retention mode
+(26.8% vs the population's 22.2%), which contributes but is not the primary driver.
+**Do not read cross-strategy R² differences as a pure leakage signal — check feature-space distance from
+train first**, especially for any target whose top permutation-importance features overlap with the
+clustering columns.
+
+**`repeated_split_evaluation.py`** re-runs `candidate_split()`'s exact fixed XGBoost hyperparameters
+(`max_depth=6`, `colsample_bytree=0.7`, etc. — chosen, per this file's own original docstring, by observing
+prediction behavior on the seed-42 test set) under 10 seeds that were never involved in choosing those
+hyperparameters. **Seed 42 (the one reported everywhere else in this repo) scores above the 10-seed mean on
+all three targets**: hysteresis +1.25σ, on/off ratio +1.37σ, retention +0.43σ. This is direct evidence that
+the commonly-quoted 0.925/0.976/0.815 numbers are on the optimistic side of what an untried split gives —
+a real, if partial, contamination effect from hyperparameters having been shaped by looking at this
+specific split. It also surfaces something more important than the seed-42 bias: **retention's test R² is
+extremely seed-dependent** (10-seed range 0.355–0.909, std 0.203) versus hysteresis (std 0.018) and on/off
+ratio (std 0.028) being an order of magnitude tighter. A single retention R² number, from any seed, should
+not be quoted without this spread alongside it.
 
 **NN training speed:** `nn.py` uses batch size 128, `torch.set_num_threads(4)` and manual index batching
 (no DataLoader). The original batch-32 / 16-thread / DataLoader setup took ~2.7 min per target because
@@ -112,17 +136,37 @@ have no single natural lattice parameter). Requires live MP API access; merges i
   The greedy whole-cluster loop overshoots the target: the actual split is 758/2000 candidates (38%) in
   test, not 25%.
 - The same split (stratified only by retention) is reused to train/evaluate all three targets.
-- XGBoost additionally runs 5-fold `GroupKFold` CV (grouped by `candidate_id`) before the final fit.
+- XGBoost runs 5-fold `StratifiedGroupKFold` CV (grouped by `candidate_id`, stratified by
+  `band_alignment` so the ~50/15/15/20% class split is respected in every fold) before the final fit,
+  recording both R² and MAE per fold to `csv/cv_scores_xgb.csv`.
+- **The CV number and the test number measure different things for retention, and the CV doesn't warn
+  you.** CV interpolates (folds are drawn from the same candidate pool with no feature-space holdout);
+  the outer test set extrapolates (whole offset-space clusters held out). For hysteresis/on-off ratio,
+  whose relevant features aren't the clustering columns, CV and test agree closely. For retention, whose
+  relevant features *are* the clustering columns, CV R²=0.975 vs test R²=0.815 — a gap the tight CV
+  fold-to-fold spread (±0.005) gives no indication of. See `retention_extrapolation_check.py` above for
+  why. **Do not treat a tight CV spread as evidence the test-set gap is noise — for this pipeline it can
+  mean the CV isn't measuring the same regime as the test set.**
 - The NN (`TabularResNet` in `nn.py`) is a custom residual MLP: input projection →
-  `BatchNorm`/`SiLU`/`Dropout` residual blocks → linear head, trained with AdamW + cosine annealing.
-  It uses a feature set that isn't identical to XGBoost's — it adds `exp(dE_LUMO_eV)`, `exp(dE_HOMO_eV)`,
-  `log10(Nt_cm3)` — so R²/MAE between the two model families aren't directly comparable.
-- Held-out R² (same 758-candidate test set): hysteresis XGB 0.925 / NN 0.916; on/off ratio XGB 0.976 /
-  NN 0.978; retention XGB 0.815 / NN 0.942. Retention is where the models diverge most — XGB's GroupKFold
-  CV R² for it is 0.977, so its 0.815 test score is a CV-vs-test gap the other targets don't show.
+  `BatchNorm`/`SiLU`/`Dropout` residual blocks → linear head, trained with AdamW + cosine annealing, with
+  early stopping (see below). It uses a feature set that isn't identical to XGBoost's — it adds
+  `exp(dE_LUMO_eV)`, `exp(dE_HOMO_eV)`, `log10(Nt_cm3)` — so R²/MAE between the two model families aren't
+  directly comparable.
+- **NN early stopping:** `nn.py` carves 15% off `train_df` (via `GroupShuffleSplit` on `candidate_id`, not
+  `candidate_split()` — that function's cluster-overshoot is far worse at this smaller scale, e.g. it gave
+  51.6% to validation instead of 15% when tried here) for a validation fold used only for early stopping.
+  Patience (30 epochs) doesn't start counting until after a 40-epoch warmup, because `CosineAnnealingLR`
+  hasn't annealed yet before that and validation R² is dominated by LR-driven noise, not convergence — an
+  earlier version without warmup stopped retention's training at epoch 21 with test R² = **-0.41**.
+  Per-target best epoch/val-R² is logged to `csv/nn_early_stopping_log.csv`.
+- Held-out R² (same 758-candidate test set): hysteresis XGB 0.925 / NN 0.918; on/off ratio XGB 0.976 /
+  NN 0.982; retention XGB 0.815 / NN 0.938. Don't read the NN's higher retention score as "the NN
+  generalizes better" without checking `repeated_split_evaluation.py`'s spread first — a single-seed
+  comparison between two models on the single hardest-to-generalize target is not a reliable ranking.
 - Permutation importance shows the NN relies on different features per target: trap density (`log10_Nt`)
   dominates hysteresis and on/off ratio, but retention is driven by the band offsets (`dE_HOMO_eV`,
-  `dE_LUMO_eV` and their `exp_` transforms), with trap density barely registering.
+  `dE_LUMO_eV` and their `exp_` transforms), with trap density barely registering. This is *why* retention
+  is the target sensitive to the clustering-based split — see `retention_extrapolation_check.py` above.
 
 **`plot*.py`** — all read `rs_training_data_real_candidates.csv` and the `predictions_{xgb,nn}_*.csv`
 files; none retrain anything. `plot2.py`/`plot3.py` produce the 4-panel xgb/nn dashboards, `plot4.py`/
@@ -169,3 +213,10 @@ CSVs change:
 - **`retention_time_s`'s bimodality is a real property of the raw data, not a split-logic artifact** — 25th
   percentile ~8.6×10⁵ s (~10 days) vs. median ~9.6×10⁹ s (~304 years). This is what
   `kmeans_xgboost_train.py`'s candidate-clustering split was built to work around.
+- **Test-set contamination is mitigated for past decisions, not prevented for future ones.**
+  `repeated_split_evaluation.py` shows seed 42's fixed hyperparameters aren't wildly cherry-picked (they
+  sit inside the 10-seed spread, just on the high side), but that check only covers hyperparameters that
+  are already frozen. If `max_depth`, `colsample_bytree`, or the split design are changed again based on
+  what improves the seed-42 test score, the same contamination reappears immediately. Any future tuning
+  should pick a seed, average over multiple seeds, or use nested CV — and validate the result against
+  seeds not used to choose it, the way `repeated_split_evaluation.py` does now for the current values.

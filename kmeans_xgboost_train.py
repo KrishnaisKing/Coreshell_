@@ -6,12 +6,13 @@ UPDATED FIXES:
    bimodal gap artifacts in log10(retention_tau_s).
 2. Deepened XGBoost tree depth & adjusted sampling to fix horizontal prediction
    plateaus inside individual candidate clusters.
-3. Added 5-Fold GroupKFold cross-validation across candidates for robust evaluation.
+3. Added 5-Fold StratifiedGroupKFold cross-validation across candidates (grouped by
+   candidate_id, stratified by band_alignment) for robust, class-balanced evaluation.
 """
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import r2_score, mean_absolute_error
 import xgboost as xgb
 
@@ -60,21 +61,27 @@ for target_name in ["hysteresis_window_V", "log10_on_off_ratio", "log10_retentio
         random_state=RANDOM_STATE,
     )
 
-    # 5-Fold Group Cross-Validation on Training Set
-    gkf = GroupKFold(n_splits=5)
+    # 5-Fold Stratified Group Cross-Validation on Training Set.
+    # StratifiedGroupKFold keeps candidate_id groups intact (no pair split across
+    # folds) while also balancing band_alignment class share per fold -- plain
+    # GroupKFold ignores the ~50/14/14/21% class imbalance entirely.
+    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
     cv_scores = []
     groups = train_df["candidate_id"]
+    strata = train_df["band_alignment"]
 
-    for fold, (train_idx, val_idx) in enumerate(gkf.split(X_train, y_train, groups), start=1):
+    for fold, (train_idx, val_idx) in enumerate(sgkf.split(X_train, strata, groups), start=1):
         X_tr, y_tr = X_train.iloc[train_idx], y_train.iloc[train_idx]
         X_val, y_val = X_train.iloc[val_idx], y_train.iloc[val_idx]
         model.fit(X_tr, y_tr)
         preds_val = model.predict(X_val)
         r2_fold = r2_score(y_val, preds_val)
+        mae_fold = mean_absolute_error(y_val, preds_val)
         cv_scores.append(r2_fold)
-        cv_rows.append({"target": ycol, "fold": fold, "r2": r2_fold})
+        cv_rows.append({"target": ycol, "fold": fold, "r2": r2_fold, "mae": mae_fold,
+                         "n_val_rows": len(val_idx)})
 
-    print(f"\n[{ycol}] GroupKFold 5-Fold CV R^2 Mean: {np.mean(cv_scores):.4f} (±{np.std(cv_scores):.4f})")
+    print(f"\n[{ycol}] StratifiedGroupKFold 5-Fold CV R^2 Mean: {np.mean(cv_scores):.4f} (±{np.std(cv_scores):.4f})")
 
     # Fit on full training set and evaluate on test set
     model.fit(X_train, y_train)
