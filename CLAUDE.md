@@ -32,8 +32,9 @@ writing/overwriting `csv/rs_training_data_real_candidates.csv` in place:
 ```
 python Prepare_real_candidates.py   # csv/synthetic_rs_dataset_fixed__1_.csv -> csv/rs_training_data_real_candidates.csv
 python Latticmatch.py               # optional: adds lattice_mismatch_pct column (needs MP_API_KEY + network)
-python kmeans_xgboost_train.py      # trains XGBoost models -> xgb_model_*.json (root), csv/predictions_xgb_*.csv
-python nn.py                        # trains PyTorch models -> nn_model_*.pt (root), csv/predictions_nn_*.csv
+python kmeans_xgboost_train.py      # ~20s. -> xgb_model_*.json (root), csv/predictions_xgb_*.csv, csv/cv_scores_xgb.csv
+python nn.py                        # SLOW (200 epochs x 3 targets). -> nn_model_*.pt, csv/predictions_nn_*.csv, csv/permutation_importance_nn_*.csv
+python nn_permutation_importance.py # computes csv/permutation_importance_nn_*.csv for already-saved nn_model_*.pt without retraining
 python plot2.py                     # xgb 4-panel dashboard -> plots/plot_1..4_*.png
 python plot3.py                     # nn 4-panel dashboard -> plots/nn_plot_1..4_*.png
 python plot4.py                     # per-target parity/residuals -> plots/{model_type}_{target}_parity.png / _residuals.png
@@ -43,16 +44,20 @@ python plot.py                      # standalone exploratory 2x3 grid, shows int
 
 There is no build step, linter, or test command in this repo.
 
-**Several plot outputs contain hardcoded placeholder numbers, not computed values.** Do not treat these
-figures as results, and do not put them in a paper without replacing the source:
-- `plot.py` "5-Fold CV Scores" panel: `fold_r2_scores` is a literal array, not read from any CV run.
-- `plot2.py` and `plot3.py` "feature importance" panels (`plots/plot_4_feature_importance.png`,
-  `plots/nn_plot_4_feature_importance.png`): `importance` is a literal list.
-- `plot5.py` `plot_nn_feature_importance()` (`plots/nn_*_importance.png`): literal list — no NN
-  importance is ever computed anywhere in the repo. Only `plot_xgb_feature_importance()` in `plot5.py`
-  reads real values (from the saved `xgb_model_*.json`).
-- Every plot script silently falls back to `np.random` synthetic `y_test`/`y_pred` if the predictions CSV
-  is missing, so a parity plot can render plausibly with no model behind it.
+Every plot script raises `FileNotFoundError` if its input CSV/model is missing — they never fall back to
+synthetic data. All plotted numbers are computed: XGBoost importances come from `feature_importances_` on
+the saved model JSON, NN importances from permutation importance (mean drop in test R², 10 repeats) in
+`csv/permutation_importance_nn_*.csv`, and CV bars from `csv/cv_scores_xgb.csv`.
+
+**Shared modules:** `split_utils.py` holds `load_dataset()` and `candidate_split()` (the candidate-grouped
+split, with the zero-overlap assert) used by both training scripts and `nn_permutation_importance.py`.
+`nn_model.py` holds `TabularResNet`, the NN feature engineering, and `permutation_importance()`. Keep the
+split logic only in `split_utils.py` — `nn_permutation_importance.py` depends on reproducing the exact
+test set of a previous `nn.py` run and verifies this against `csv/predictions_nn_*.csv` before computing.
+
+**No NN model exists for `log10_retention_tau_s`** because that training run was manually terminated
+(nn.py is slow); only hysteresis and on/off ratio NN artifacts exist. `plot5.py` skips the NN retention
+plot with a message rather than failing.
 
 ## Architecture
 
@@ -72,16 +77,15 @@ constant `a_pc = (V_cell/Z)^(1/3)` (standard approximation for halide perovskite
 have no single natural lattice parameter). Requires live MP API access; merges its result back onto
 `rs_training_data_real_candidates.csv` by `candidate_id`.
 
-**`kmeans_xgboost_train.py` / `nn.py`** — the training scripts, structurally near-identical (duplicated
-split/clustering logic, not shared code):
+**`kmeans_xgboost_train.py` / `nn.py`** — the training scripts, both using `split_utils.candidate_split()`:
 - Build a candidate-level table (one row per material pair) from material features (`dE_LUMO_eV`,
   `dE_HOMO_eV`, `confinement_score_eV`, `lattice_mismatch_pct`, whichever exist) plus each candidate's
   mean `log10_retention_tau_s`, binned into 3 retention tiers via `qcut`.
 - KMeans-cluster candidates by material features *within* each retention tier, then hold out whole
   clusters (~25% target) as test candidates. This is the **candidate-grouped, retention-stratified split**
   — it guarantees no `candidate_id` (and its ~4 device-parameter sweep rows) is split across train/test.
-  Only `kmeans_xgboost_train.py` has an explicit `assert` verifying zero train/test candidate overlap;
-  `nn.py` builds the same split without that check.
+  The greedy whole-cluster loop overshoots the target: the actual split is 758/2000 candidates (38%) in
+  test, not 25%.
 - The same split (stratified only by retention) is reused to train/evaluate all three targets.
 - XGBoost additionally runs 5-fold `GroupKFold` CV (grouped by `candidate_id`) before the final fit.
 - The NN (`TabularResNet` in `nn.py`) is a custom residual MLP: input projection →

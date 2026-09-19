@@ -14,15 +14,11 @@ plt.rcParams['font.sans-serif'] = 'DejaVu Sans'
 def generate_metric_plots(target_name, display_title, model_type="xgb"):
     pred_file = f"csv/predictions_{model_type}_{target_name}.csv"
     
-    if os.path.exists(pred_file):
-        pred_df = pd.read_csv(pred_file)
-        y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
-        y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
-    else:
-        # Fallback simulation if model hasn't been run for this target yet
-        np.random.seed(42)
-        y_test = np.random.uniform(2.0, 8.0, size=60)
-        y_pred = y_test + np.random.normal(0, 0.3, size=60)
+    if not os.path.exists(pred_file):
+        raise FileNotFoundError(f"{pred_file} not found. Run the {model_type} training script first.")
+    pred_df = pd.read_csv(pred_file)
+    y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
+    y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
 
     r2_val = r2_score(y_test, y_pred) if len(y_test) > 0 else 0.0
     rmse_val = np.sqrt(mean_squared_error(y_test, y_pred)) if len(y_test) > 0 else 0.0

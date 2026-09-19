@@ -28,16 +28,17 @@ for col in non_numeric_cols:
 target_var = "hysteresis_window_V"
 pred_file = f"csv/predictions_nn_{target_var}.csv"
 
-if os.path.exists(pred_file):
-    pred_df = pd.read_csv(pred_file)
-    y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
-    y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
-else:
-    # Fallback simulation if NN prediction file isn't created yet
-    np.random.seed(101)
-    y_test = np.random.uniform(1.0, 5.0, size=60)
-    # Neural Networks often exhibit slightly smoother variance compared to tree ensembles
-    y_pred = y_test + np.random.normal(0, 0.22, size=60)
+if not os.path.exists(pred_file):
+    raise FileNotFoundError(f"{pred_file} not found. Run nn.py first.")
+pred_df = pd.read_csv(pred_file)
+y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
+y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
+
+# 3. Load NN permutation importance (written by nn.py or nn_permutation_importance.py)
+imp_file = f"csv/permutation_importance_nn_{target_var}.csv"
+if not os.path.exists(imp_file):
+    raise FileNotFoundError(f"{imp_file} not found. Run nn_permutation_importance.py (or nn.py) first.")
+feat_imp = pd.read_csv(imp_file).head(8)
 
 r2_val = r2_score(y_test, y_pred) if len(y_test) > 0 else 0.0
 rmse_val = np.sqrt(mean_squared_error(y_test, y_pred)) if len(y_test) > 0 else 0.0
@@ -107,14 +108,11 @@ plt.close(fig3)
 # IMAGE 4: Neural Network Feature Sensitivity / Weights
 # ==========================================
 fig4, ax4 = plt.subplots(figsize=(6, 5), dpi=300)
-# Feature attribution derived for neural net layers
-feat_names = ['dE_LUMO_eV', 'dE_HOMO_eV', 'shell_thick_nm', 'core_radius_nm', 'eps_shell']
-importance = [0.41, 0.32, 0.15, 0.07, 0.05]
-
-palette = sns.color_palette("Purples_r", n_colors=len(feat_names))
-ax4.barh(feat_names[::-1], importance[::-1], color=palette, edgecolor='black', linewidth=0.5)
-ax4.set_title('Top NN Feature Sensitivity', fontweight='bold', fontsize=11)
-ax4.set_xlabel('Relative Weight / Impact', fontweight='bold', fontsize=10)
+palette = sns.color_palette("Purples_r", n_colors=len(feat_imp))
+ax4.barh(feat_imp['feature'][::-1], feat_imp['importance_mean'][::-1],
+         xerr=feat_imp['importance_std'][::-1], color=palette, edgecolor='black', linewidth=0.5)
+ax4.set_title(f'NN Permutation Importance: {target_var}', fontweight='bold', fontsize=11)
+ax4.set_xlabel('Mean drop in test $R^2$ when feature is shuffled', fontweight='bold', fontsize=10)
 ax4.grid(True, linestyle=':', alpha=0.6)
 
 plt.tight_layout()

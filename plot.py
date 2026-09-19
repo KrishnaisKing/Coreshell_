@@ -41,15 +41,12 @@ df[y_col] = pd.to_numeric(df[y_col], errors='coerce')
 # 2. Load generated test set predictions
 target_var = "hysteresis_window_V"
 pred_file = f"csv/predictions_xgb_{target_var}.csv"
+if not os.path.exists(pred_file):
+    raise FileNotFoundError(f"{pred_file} not found. Run kmeans_xgboost_train.py first.")
 
-if os.path.exists(pred_file):
-    pred_df = pd.read_csv(pred_file)
-    y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').values
-    y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').values
-else:
-    print(f"Warning: {pred_file} not found. Generating sample values for display.")
-    y_test = np.random.uniform(14.5, 19.0, size=50)
-    y_pred = y_test + np.random.normal(0, 0.35, size=50)
+pred_df = pd.read_csv(pred_file)
+y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').values
+y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').values
 
 # Filter out NaNs from predictions
 mask = ~np.isnan(y_test) & ~np.isnan(y_pred)
@@ -61,26 +58,30 @@ rmse_val = np.sqrt(mean_squared_error(y_test, y_pred))
 
 # 3. Load XGBoost model for feature importance
 model_file = f"xgb_model_{target_var}.json"
-if os.path.exists(model_file):
-    xgb_model = xgb.XGBRegressor()
-    xgb_model.load_model(model_file)
-    
-    band_align_cols = [c for c in df.columns if c.startswith("band_align_")]
-    feature_cols = [c for c in [
-        "dE_LUMO_eV", "dE_HOMO_eV", "shell_thick_nm", "core_radius_nm",
-        "Nt_cm3", "eps_shell", "Vmax_V", "lattice_mismatch_pct",
-    ] if c in df.columns] + band_align_cols
-    
-    importance_scores = xgb_model.feature_importances_
-    feat_imp = pd.DataFrame({'feature': feature_cols[:len(importance_scores)], 'importance': importance_scores})
-    feat_imp = feat_imp.sort_values('importance', ascending=False).head(9)
-else:
-    feat_imp = pd.DataFrame({
-        'feature': ['Shell_Eg_bulk_eV', 'Core_Eg_nano_3nm_eV', 'Total_Confinement_eV', 
-                    'Shell_a_A', 'Confinement_Asymmetry', 'Defect_Gradient_eV', 
-                    'Core_a_A', 'Strain_Decay_Factor', 'Lattice_Mismatch_pct'],
-        'importance': [0.76, 0.14, 0.05, 0.03, 0.005, 0.004, 0.002, 0.001, 0.001]
-    })
+if not os.path.exists(model_file):
+    raise FileNotFoundError(f"{model_file} not found. Run kmeans_xgboost_train.py first.")
+
+xgb_model = xgb.XGBRegressor()
+xgb_model.load_model(model_file)
+
+band_align_cols = [c for c in df.columns if c.startswith("band_align_")]
+feature_cols = [c for c in [
+    "dE_LUMO_eV", "dE_HOMO_eV", "shell_thick_nm", "core_radius_nm",
+    "Nt_cm3", "eps_shell", "Vmax_V", "lattice_mismatch_pct",
+] if c in df.columns] + band_align_cols
+
+importance_scores = xgb_model.feature_importances_
+feat_imp = pd.DataFrame({'feature': feature_cols[:len(importance_scores)], 'importance': importance_scores})
+feat_imp = feat_imp.sort_values('importance', ascending=False).head(9)
+
+# 4. Load GroupKFold CV scores written by kmeans_xgboost_train.py
+cv_file = "csv/cv_scores_xgb.csv"
+if not os.path.exists(cv_file):
+    raise FileNotFoundError(f"{cv_file} not found. Run kmeans_xgboost_train.py first.")
+cv_df = pd.read_csv(cv_file)
+cv_df = cv_df[cv_df["target"] == target_var].sort_values("fold")
+fold_r2_scores = cv_df["r2"].values
+mean_r2 = np.mean(fold_r2_scores)
 
 # Initialize Grid Plot
 fig, axes = plt.subplots(2, 3, figsize=(18, 11), dpi=120)
@@ -89,13 +90,11 @@ plt.subplots_adjust(wspace=0.3, hspace=0.35)
 # ==========================================
 # PLOT 1: 5-Fold CV Scores
 # ==========================================
-fold_r2_scores = np.array([0.93, 0.94, 0.885, 0.975, 0.835]) 
-mean_r2 = np.mean(fold_r2_scores)
 
 ax1 = axes[0, 0]
-ax1.bar([f"Fold {i+1}" for i in range(5)], fold_r2_scores, color='#5B7CFA', edgecolor='black', linewidth=0.8, width=0.7)
+ax1.bar([f"Fold {i}" for i in cv_df["fold"]], fold_r2_scores, color='#5B7CFA', edgecolor='black', linewidth=0.8, width=0.7)
 ax1.axhline(mean_r2, color='#CC0000', linestyle='--', linewidth=1.8, label=f'Mean R2 = {mean_r2:.3f}')
-ax1.set_title('5-Fold Cross-Validation (R2)', fontweight='bold', fontsize=10)
+ax1.set_title('5-Fold GroupKFold Cross-Validation (R2)', fontweight='bold', fontsize=10)
 ax1.set_xlabel('K-Fold Validation Split', fontweight='bold', fontsize=9)
 ax1.set_ylabel('R2 Score', fontweight='bold', fontsize=9)
 ax1.set_ylim(0, 1.05)
@@ -135,8 +134,7 @@ ax3.legend(loc='upper right', frameon=True, facecolor='white', edgecolor='lightg
 ax4 = axes[1, 0]
 plot_df = df[[x_col, y_col]].dropna()
 ax4.scatter(plot_df[x_col], plot_df[y_col], color='#5B7CFA', edgecolors='#203B82', alpha=0.6, s=20, label='Candidates')
-ax4.axvline(34.93, color='#CC0000', linestyle='--', linewidth=1.8, label=r'Threshold Limit ($\leq 34.93$)')
-ax4.set_title(f'{y_col} vs {x_col} Pareto Front', fontweight='bold', fontsize=9)
+ax4.set_title(f'{y_col} vs {x_col}', fontweight='bold', fontsize=9)
 ax4.set_xlabel(x_col, fontweight='bold', fontsize=9)
 ax4.set_ylabel(y_col, fontweight='bold', fontsize=9)
 ax4.legend(loc='lower right', frameon=True, facecolor='white', edgecolor='lightgray', fontsize=9)

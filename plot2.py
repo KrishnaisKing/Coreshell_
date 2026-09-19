@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import norm
 from sklearn.metrics import r2_score, mean_squared_error
+import xgboost as xgb
 
 # Set global scientific plotting theme
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -24,16 +25,29 @@ for col in non_numeric_cols:
     if not converted.isna().all():
         df[col] = converted
 
-# 2. Load predictions file (Fallback if not run yet)
-pred_file = "csv/predictions_xgb_hysteresis_window_V.csv"
-if os.path.exists(pred_file):
-    pred_df = pd.read_csv(pred_file)
-    y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
-    y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
-else:
-    np.random.seed(42)
-    y_test = np.random.uniform(1.0, 5.0, size=60)
-    y_pred = y_test + np.random.normal(0, 0.25, size=60)
+# 2. Load predictions file
+target_var = "hysteresis_window_V"
+pred_file = f"csv/predictions_xgb_{target_var}.csv"
+if not os.path.exists(pred_file):
+    raise FileNotFoundError(f"{pred_file} not found. Run kmeans_xgboost_train.py first.")
+pred_df = pd.read_csv(pred_file)
+y_test = pd.to_numeric(pred_df["y_true"], errors='coerce').dropna().values
+y_pred = pd.to_numeric(pred_df["y_pred"], errors='coerce').dropna().values
+
+# 3. Load the trained XGBoost model for real feature importances
+model_file = f"xgb_model_{target_var}.json"
+if not os.path.exists(model_file):
+    raise FileNotFoundError(f"{model_file} not found. Run kmeans_xgboost_train.py first.")
+xgb_model = xgb.XGBRegressor()
+xgb_model.load_model(model_file)
+band_align_cols = [c for c in df.columns if c.startswith("band_align_")]
+feature_cols = [c for c in [
+    "dE_LUMO_eV", "dE_HOMO_eV", "shell_thick_nm", "core_radius_nm",
+    "Nt_cm3", "eps_shell", "Vmax_V", "lattice_mismatch_pct",
+] if c in df.columns] + band_align_cols
+scores = xgb_model.feature_importances_
+feat_imp = (pd.DataFrame({'feature': feature_cols[:len(scores)], 'importance': scores})
+            .sort_values('importance', ascending=False).head(8))
 
 r2_val = r2_score(y_test, y_pred) if len(y_test) > 0 else 0.0
 rmse_val = np.sqrt(mean_squared_error(y_test, y_pred)) if len(y_test) > 0 else 0.0
@@ -103,13 +117,10 @@ plt.close(fig3)
 # IMAGE 4: Top Model Feature Importances
 # ==========================================
 fig4, ax4 = plt.subplots(figsize=(6, 5), dpi=300)
-feat_names = ['dE_LUMO_eV', 'dE_HOMO_eV', 'shell_thick_nm', 'core_radius_nm', 'eps_shell']
-importance = [0.45, 0.28, 0.14, 0.08, 0.05]
-
-palette = sns.color_palette("mako", n_colors=len(feat_names))
-ax4.barh(feat_names[::-1], importance[::-1], color=palette[::-1], edgecolor='black', linewidth=0.5)
-ax4.set_title('Top Model Feature Importances', fontweight='bold', fontsize=11)
-ax4.set_xlabel('Relative Weight', fontweight='bold', fontsize=10)
+palette = sns.color_palette("mako", n_colors=len(feat_imp))
+ax4.barh(feat_imp['feature'][::-1], feat_imp['importance'][::-1], color=palette[::-1], edgecolor='black', linewidth=0.5)
+ax4.set_title(f'XGBoost Feature Importance: {target_var}', fontweight='bold', fontsize=11)
+ax4.set_xlabel('Gain-based importance', fontweight='bold', fontsize=10)
 ax4.grid(True, linestyle=':', alpha=0.6)
 
 plt.tight_layout()

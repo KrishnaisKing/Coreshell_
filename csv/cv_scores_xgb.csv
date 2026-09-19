@@ -1,0 +1,16 @@
+target,fold,r2
+hysteresis_window_V,1,0.9284282132484736
+hysteresis_window_V,2,0.9496368720781357
+hysteresis_window_V,3,0.9344495802373654
+hysteresis_window_V,4,0.9181040567222779
+hysteresis_window_V,5,0.89794460389108
+log10_on_off_ratio,1,0.9893006877947496
+log10_on_off_ratio,2,0.983990602472555
+log10_on_off_ratio,3,0.9883850701564578
+log10_on_off_ratio,4,0.9845415849550806
+log10_on_off_ratio,5,0.9860176562940598
+log10_retention_tau_s,1,0.9834875853146106
+log10_retention_tau_s,2,0.9816651784903867
+log10_retention_tau_s,3,0.9764345980434354
+log10_retention_tau_s,4,0.962430231231544
+log10_retention_tau_s,5,0.9814311560794663
