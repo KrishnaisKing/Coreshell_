@@ -20,6 +20,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import load_dataset
 
 plt.style.use('seaborn-v0_8-whitegrid')

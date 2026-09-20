@@ -16,6 +16,8 @@ from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import r2_score, mean_absolute_error
 import xgboost as xgb
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
 
 # ---------------------------------------------------------------

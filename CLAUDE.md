@@ -8,9 +8,39 @@ An ML pipeline that predicts resistive-switching (memristor-like) device metrics
 `log10_on_off_ratio`, `log10_retention_tau_s` — for Type I core/shell nanocrystal candidates, from
 material/device descriptors (band offsets, shell thickness, trap density, dielectric constant, lattice
 mismatch, etc.). There is no package manifest (no `requirements.txt`/`pyproject.toml`) and no test suite;
-it's a flat set of standalone scripts run in sequence, each reading/writing by hardcoded relative path (no
-CLI args). Layout: scripts and model artifacts (`xgb_model_*.json`, `nn_model_*.pt`) live in the root,
-all CSVs live in `csv/`, all figures in `plots/`. Scripts must be run from the repo root.
+it's a set of standalone scripts run in sequence, each reading/writing by hardcoded relative path (no CLI
+args) — paths are relative to the repo root regardless of which subfolder the script itself lives in, so
+**scripts must always be invoked from the repo root** (e.g. `python scripts/training/nn.py`, never `cd
+scripts/training && python nn.py`). Layout: all `.py` files live under `scripts/`, organized by purpose
+(see "Script organization" below); model artifacts (`xgb_model_*.json`, `nn_model_*.pt`) live in the repo
+root; all CSVs live in `csv/`; all figures in `plots/`.
+
+### Script organization
+
+```
+scripts/
+├── split_utils.py      # shared: load_dataset(), candidate_split(), random_row_split(), leave_materials_out_split()
+├── nn_model.py          # shared: TabularResNet, NN feature engineering, permutation_importance()
+├── pipeline/            # Prepare_real_candidates.py, Latticmatch.py
+├── training/            # kmeans_xgboost_train.py, nn.py, nn_permutation_importance.py
+├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py
+└── validation/          # split_strategy_comparison.py, retention_extrapolation_check.py,
+                         # repeated_split_evaluation.py, physics_sanity_checks.py,
+                         # multicollinearity_check.py, uncertainty_quantification.py
+```
+
+`split_utils.py`/`nn_model.py` stay directly under `scripts/` rather than in their own subfolder because
+every other script imports them as siblings. Python only auto-adds a *script's own directory* to its import
+path, not the repo root or sibling folders — so every script under `pipeline/`, `training/`, or
+`validation/` that needs them starts with:
+```python
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from split_utils import ...
+```
+This is boilerplate, not a design choice to admire — if this project ever gains a package manifest, replace
+it with a proper installed package and absolute imports instead of copying this pattern further. `plot*.py`
+and the two `pipeline/` scripts need no such fix; they don't import either shared module.
 
 ## Environment
 
@@ -29,22 +59,26 @@ a live `MP_API_KEY` and network access to materialsproject.org (not available in
 Scripts must be run in this order from the repo root; each stage's output feeds the next by
 writing/overwriting `csv/rs_training_data_real_candidates.csv` in place:
 
+All paths below are relative to the repo root — run every command from there, regardless of the script's
+own subfolder:
+
 ```
-python Prepare_real_candidates.py   # csv/synthetic_rs_dataset_fixed__1_.csv -> csv/rs_training_data_real_candidates.csv
-python Latticmatch.py               # optional: adds lattice_mismatch_pct column (needs MP_API_KEY + network)
-python kmeans_xgboost_train.py      # ~20s. -> xgb_model_*.json (root), csv/predictions_xgb_*.csv, csv/cv_scores_xgb.csv
-python nn.py                        # ~100s total (3 targets). -> nn_model_*.pt, csv/predictions_nn_*.csv, csv/permutation_importance_nn_*.csv
-python nn_permutation_importance.py # computes csv/permutation_importance_nn_*.csv for already-saved nn_model_*.pt without retraining
-python plot2.py                     # xgb 4-panel dashboard -> plots/plot_1..4_*.png
-python plot3.py                     # nn 4-panel dashboard -> plots/nn_plot_1..4_*.png
-python plot4.py                     # per-target parity/residuals -> plots/{model_type}_{target}_parity.png / _residuals.png
-python plot5.py                     # per-target feature importance -> plots/xgb_{target}_importance.png / nn_{target}_importance.png
-python plot.py                      # standalone exploratory 2x3 grid, shows interactively (no savefig)
-python split_strategy_comparison.py # trains XGBoost under 3 split strategies -> csv/split_strategy_comparison.csv, plots/split_strategy_comparison.png
-python retention_extrapolation_check.py # confirms/quantifies WHY retention drops under the grouped split -> csv/retention_extrapolation_check.csv, plots/retention_extrapolation_check.png
-python repeated_split_evaluation.py # re-evaluates the fixed XGBoost hyperparams under 10 unseen seeds -> csv/repeated_split_evaluation.csv, plots/repeated_split_evaluation.png (~35s)
-python physics_sanity_checks.py     # monotonicity checks (hysteresis vs Nt/barrier height, on-off/retention vs shell thickness) -> csv/physics_sanity_checks.csv, plots/physics_sanity_checks.png
-python multicollinearity_check.py   # VIF across the full feature set -> csv/multicollinearity_check.csv, plots/multicollinearity_check.png
+python scripts/pipeline/Prepare_real_candidates.py   # csv/synthetic_rs_dataset_fixed__1_.csv -> csv/rs_training_data_real_candidates.csv
+python scripts/pipeline/Latticmatch.py               # optional: adds lattice_mismatch_pct column (needs MP_API_KEY + network)
+python scripts/training/kmeans_xgboost_train.py      # ~20s. -> xgb_model_*.json (root), csv/predictions_xgb_*.csv, csv/cv_scores_xgb.csv
+python scripts/training/nn.py                        # ~90s total (3 targets, early-stopped). -> nn_model_*.pt, csv/predictions_nn_*.csv, csv/permutation_importance_nn_*.csv, csv/nn_early_stopping_log.csv
+python scripts/training/nn_permutation_importance.py # computes csv/permutation_importance_nn_*.csv for already-saved nn_model_*.pt without retraining
+python scripts/plotting/plot2.py                     # xgb 4-panel dashboard -> plots/plot_1..4_*.png
+python scripts/plotting/plot3.py                     # nn 4-panel dashboard -> plots/nn_plot_1..4_*.png
+python scripts/plotting/plot4.py                     # per-target parity/residuals -> plots/{model_type}_{target}_parity.png / _residuals.png
+python scripts/plotting/plot5.py                     # per-target feature importance -> plots/xgb_{target}_importance.png / nn_{target}_importance.png
+python scripts/plotting/plot.py                      # standalone exploratory 2x3 grid, shows interactively (no savefig)
+python scripts/validation/split_strategy_comparison.py     # trains XGBoost under 3 split strategies -> csv/split_strategy_comparison.csv, plots/split_strategy_comparison.png
+python scripts/validation/retention_extrapolation_check.py # confirms/quantifies WHY retention drops under the grouped split -> csv/retention_extrapolation_check.csv, plots/retention_extrapolation_check.png
+python scripts/validation/repeated_split_evaluation.py     # re-evaluates the fixed XGBoost hyperparams under 10 unseen seeds -> csv/repeated_split_evaluation.csv, plots/repeated_split_evaluation.png (~35s)
+python scripts/validation/physics_sanity_checks.py         # monotonicity checks (hysteresis vs Nt/barrier height, on-off/retention vs shell thickness) -> csv/physics_sanity_checks.csv, plots/physics_sanity_checks.png
+python scripts/validation/multicollinearity_check.py       # VIF across the full feature set -> csv/multicollinearity_check.csv, plots/multicollinearity_check.png
+python scripts/validation/uncertainty_quantification.py    # 80% prediction intervals via XGBoost quantile regression -> csv/uncertainty_quantification.csv, plots/uncertainty_quantification.png
 ```
 
 There is no build step, linter, or test command in this repo.

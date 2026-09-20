@@ -13,6 +13,8 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
 from nn_model import add_engineered_features, feature_columns, TabularResNet, permutation_importance
 

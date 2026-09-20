@@ -36,6 +36,8 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import load_dataset
 
 plt.style.use('seaborn-v0_8-whitegrid')

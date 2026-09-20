@@ -15,6 +15,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.model_selection import GroupShuffleSplit
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
 from nn_model import add_engineered_features, feature_columns, TabularResNet, predict, permutation_importance
 
