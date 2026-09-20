@@ -210,12 +210,25 @@ not yet merged to `main`):**
   models "rediscover" the band-alignment rule themselves) and document why.
 - [x] Real permutation importance for the NN (was a hardcoded placeholder) — done as part of the Tier 0
   cleanup, `657124f`.
-- [~] **Stratify splits by `band_alignment`** — half done. The inner 5-fold CV in
-  `kmeans_xgboost_train.py` now uses `StratifiedGroupKFold` on `band_alignment` (`92780cd`), but the
-  **outer split** (`candidate_split()` in `split_utils.py`, which decides which 758 candidates actually
-  become the held-out test set) is still stratified only by retention bin — `band_alignment` plays no role
-  in choosing who goes into test, so the ~14%-share minority classes (Type I "core confines shell") could
-  still be over/under-represented in test by chance.
+- [~] **Stratify splits by `band_alignment`** — half done, and the other half was tried and reverted.
+  The inner 5-fold CV in `kmeans_xgboost_train.py` uses `StratifiedGroupKFold` on `band_alignment`
+  (`92780cd`) — that part's solid. The **outer split** (`candidate_split()` in `split_utils.py`, which
+  decides which candidates become the held-out test set) is still stratified only by retention bin.
+  Attempted fix: stratify by `(retention_bin, band_alignment)` jointly (12 strata instead of 3), using the
+  same greedy whole-cluster-until-quota loop. **Result was worse, not better — reverted, do not retry this
+  exact approach**: test fraction ballooned from 38% to 58.8% of all candidates, and class balance didn't
+  even reliably improve (Type III went from 20.4% of the population to 11.3% of test — now
+  *under*-represented — while both Type I subclasses became over-represented). Root cause: with only 6
+  global KMeans clusters spread across 12 strata instead of 3, many strata have so few candidates in any
+  given cluster that adding "one cluster's worth" can itself exceed 100% of that stratum's quota — the same
+  failure mode as the NN validation-split overshoot described above, now hitting the outer split instead.
+  A real fix needs either a rebalancing pass on top of the existing split (swap whole
+  `(retention_bin, cluster)` groups between train/test to correct class share, which is a nontrivial search
+  problem) or a different allocation algorithm entirely (e.g. sampling individual candidates per
+  `(retention_bin, band_alignment, cluster)` cell instead of whole clusters) — both are real design changes
+  that would also invalidate the current `split_strategy_comparison.py` / `retention_extrapolation_check.py`
+  / `repeated_split_evaluation.py` numbers, which all assume the current split's behavior. Deliberately not
+  pursued for now — `candidate_split()` is unchanged from `92780cd`.
 - Also fixed here, surfaced by a direct CV audit rather than being on the original list (`92780cd`):
   - [x] CV was blind to the retention extrapolation regime (CV interpolates, the outer test set
     extrapolates over offset-space clusters) — quantified in `retention_extrapolation_check.py`.
