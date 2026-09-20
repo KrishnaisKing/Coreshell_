@@ -1,0 +1,7 @@
+driver,target,expected_sign,spearman_rho,passed,description
+log10_Nt,hysteresis_window_V,1,0.7696693835651467,True,hysteresis_window_V should increase with trap density (more traps -> more charge stored per sweep)
+abs_dE_LUMO,hysteresis_window_V,1,0.11522881412462428,True,hysteresis_window_V should increase with electron barrier height |dE_LUMO_eV| (deeper trap -> slower detrapping -> wider hysteresis)
+abs_dE_HOMO,hysteresis_window_V,1,0.12939773398581075,True,"hysteresis_window_V should increase with hole barrier height |dE_HOMO_eV|, same mechanism"
+shell_thick_nm,log10_on_off_ratio,-1,-0.14373916905061204,True,on_off_ratio should fall as shell_thick_nm grows (thicker tunneling barrier -> less charge transfer)
+shell_thick_nm,log10_retention_tau_s,1,0.10705654109463349,True,retention_tau_s should rise as shell_thick_nm grows (thicker barrier -> harder for charge to escape)
+band_alignment,hysteresis_window_V,-1,,False,"Type III (least confinement) should show the LEAST hysteresis, not the most -- confirmed inverted (see CLAUDE.md 'Verified data/pipeline caveats'); blocked on asking faculty how the data was generated, not fixable from code/data alone."

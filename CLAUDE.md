@@ -43,6 +43,8 @@ python plot.py                      # standalone exploratory 2x3 grid, shows int
 python split_strategy_comparison.py # trains XGBoost under 3 split strategies -> csv/split_strategy_comparison.csv, plots/split_strategy_comparison.png
 python retention_extrapolation_check.py # confirms/quantifies WHY retention drops under the grouped split -> csv/retention_extrapolation_check.csv, plots/retention_extrapolation_check.png
 python repeated_split_evaluation.py # re-evaluates the fixed XGBoost hyperparams under 10 unseen seeds -> csv/repeated_split_evaluation.csv, plots/repeated_split_evaluation.png (~35s)
+python physics_sanity_checks.py     # monotonicity checks (hysteresis vs Nt/barrier height, on-off/retention vs shell thickness) -> csv/physics_sanity_checks.csv, plots/physics_sanity_checks.png
+python multicollinearity_check.py   # VIF across the full feature set -> csv/multicollinearity_check.csv, plots/multicollinearity_check.png
 ```
 
 There is no build step, linter, or test command in this repo.
@@ -239,15 +241,41 @@ not yet merged to `main`):**
     frozen hyperparameters against 10 unseen seeds, but any *future* re-tuning reintroduces the same
     contamination unless it's checked the same way.
 
-**Tier 2 — physics-rigor checks from the publication doc (not started):**
-- [ ] Formalize the monotonicity sanity checks (hysteresis vs. trap density/barrier height, on/off ratio
-  vs. shell thickness, retention vs. barrier height) as a saved, reproducible script — currently these were
-  only checked ad hoc in conversation, not committed anywhere.
-- [ ] Multicollinearity check (VIF) across the full feature set — only pairwise Pearson correlations have
-  been checked so far, not a proper VIF pass.
-- [ ] Uncertainty quantification (quantile regression, ensembles, or a GP on a subset) — nothing in the
-  pipeline currently produces a confidence interval alongside a point prediction, which matters most for
-  the stated end use (ranking candidates for synthesis).
+**Tier 2 — physics-rigor checks from the publication doc:**
+- [x] Formalize the monotonicity sanity checks as a saved script — `physics_sanity_checks.py`. Bins each
+  driver into deciles, reports Spearman rho (a direct monotonicity measure, unlike Pearson) against the
+  theoretically-expected sign. **5/6 pass**: hysteresis increases with trap density (rho=+0.77) and with
+  both barrier heights |dE_LUMO_eV|/|dE_HOMO_eV| (rho=+0.12/+0.13); on/off ratio falls with shell thickness
+  (rho=-0.14); retention rises with shell thickness (rho=+0.11). The one failure is the already-documented
+  `band_alignment` ordering (see "Verified data/pipeline caveats" below) — not a new finding, just now
+  formally tracked alongside the others in `csv/physics_sanity_checks.csv` /
+  `plots/physics_sanity_checks.png`.
+- [x] Multicollinearity check (VIF) across the full feature set — `multicollinearity_check.py` (manual
+  VIF via `sklearn.LinearRegression`, no `statsmodels` dependency added). **Result: every VIF ≈ 1.0** —
+  essentially no linear multicollinearity anywhere, `band_align_*` included. **Read this result carefully,
+  don't take it as "the feature redundancy is fine after all":** VIF only detects *linear* relationships.
+  `band_alignment` is a deterministic function of `dE_LUMO_eV`/`dE_HOMO_eV`, but via a sign/threshold rule
+  (a classification boundary), which a linear regression cannot fit (R²≈0) even though the mapping is 100%
+  deterministic — the same reason the raw Pearson correlations between the offsets and any target were
+  always weak despite those offsets clearly driving predictions. So: VIF confirms this feature set would be
+  safe for a genuinely linear/coefficient-based model, but says nothing about the risk for tree splits or
+  a SISSO-style symbolic-regression model, both of which *can* exploit non-linear structure and would still
+  hit the redundancy already documented under "Verified data/pipeline caveats." The feature-redundancy
+  decision (Tier 1, item 6) is still open — this check didn't close it, and shouldn't be read as having done so.
+- [x] Uncertainty quantification — `uncertainty_quantification.py`, XGBoost's native
+  `reg:quantileerror` objective (`quantile_alpha=[0.1, 0.5, 0.9]`, no new dependency, same hyperparameters/
+  features/split as `kmeans_xgboost_train.py`) gives an 80% prediction interval per candidate. **Result
+  lines up exactly with every other retention finding in this file**: hysteresis empirical coverage 0.793
+  and on/off ratio 0.770 are both close to the 0.80 nominal target — well calibrated. Retention's coverage
+  is **0.632** — badly under nominal. This is the calibration-diagnostic view of the same extrapolation
+  problem `retention_extrapolation_check.py` already quantified: prediction intervals are calibrated from
+  in-distribution training residuals, and calibration doesn't transfer to a test set that's
+  out-of-distribution in the exact features (`dE_LUMO_eV`/`dE_HOMO_eV`) the split holds out on. Visually,
+  `plots/uncertainty_quantification.png` shows the retention median saturating near the target's ceiling
+  while true values scatter widely below it, well outside the band, for a large share of test candidates.
+  **Do not report retention's prediction intervals as reliable without re-running this against
+  `leave_materials_out_split()` first** — the same distinction that matters for R² almost certainly matters
+  here too, and hasn't been checked yet.
 
 **Tier 3 — blocked on external input:**
 - [ ] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — no measured core-shell RS
