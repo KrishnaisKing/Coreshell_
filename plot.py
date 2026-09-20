@@ -74,7 +74,7 @@ importance_scores = xgb_model.feature_importances_
 feat_imp = pd.DataFrame({'feature': feature_cols[:len(importance_scores)], 'importance': importance_scores})
 feat_imp = feat_imp.sort_values('importance', ascending=False).head(9)
 
-# 4. Load GroupKFold CV scores written by kmeans_xgboost_train.py
+# 4. Load StratifiedGroupKFold CV scores written by kmeans_xgboost_train.py
 cv_file = "csv/cv_scores_xgb.csv"
 if not os.path.exists(cv_file):
     raise FileNotFoundError(f"{cv_file} not found. Run kmeans_xgboost_train.py first.")
@@ -94,7 +94,7 @@ plt.subplots_adjust(wspace=0.3, hspace=0.35)
 ax1 = axes[0, 0]
 ax1.bar([f"Fold {i}" for i in cv_df["fold"]], fold_r2_scores, color='#5B7CFA', edgecolor='black', linewidth=0.8, width=0.7)
 ax1.axhline(mean_r2, color='#CC0000', linestyle='--', linewidth=1.8, label=f'Mean R2 = {mean_r2:.3f}')
-ax1.set_title('5-Fold GroupKFold Cross-Validation (R2)', fontweight='bold', fontsize=10)
+ax1.set_title('5-Fold StratifiedGroupKFold Cross-Validation (R2)', fontweight='bold', fontsize=10)
 ax1.set_xlabel('K-Fold Validation Split', fontweight='bold', fontsize=9)
 ax1.set_ylabel('R2 Score', fontweight='bold', fontsize=9)
 ax1.set_ylim(0, 1.05)
