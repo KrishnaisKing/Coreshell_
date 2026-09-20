@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
 from split_utils import load_dataset
 
@@ -51,10 +52,21 @@ feature_cols = [c for c in [
 
 
 def compute_vif(X: pd.DataFrame) -> pd.Series:
+    # VIF's true value is scale-invariant -- it only depends on the correlation
+    # structure between predictors, not their units. But the LEAST-SQUARES FIT
+    # used to compute it is not numerically scale-invariant: Nt_cm3 spans
+    # 1e15-1e19 while every other feature here is O(1)-O(300), a condition
+    # number far beyond float64's ~15-16 digits of precision. Fitting
+    # unstandardized gave R^2 ~ 0.00002 for every single feature (garbage --
+    # the solver lost the small-magnitude coefficients in the noise floor),
+    # which is what an all-VIF-exactly-1.0 plot actually means: numerical
+    # failure, not "no collinearity." Standardizing first fixes this without
+    # changing the true VIF values at all.
+    Xs = pd.DataFrame(StandardScaler().fit_transform(X), columns=X.columns, index=X.index)
     vifs = {}
-    for col in X.columns:
-        y = X[col].values
-        others = X.drop(columns=[col]).values
+    for col in Xs.columns:
+        y = Xs[col].values
+        others = Xs.drop(columns=[col]).values
         r2 = LinearRegression().fit(others, y).score(others, y)
         # r2 can come back fractionally above 1 or exactly 1 from float error on
         # an exact linear dependency -- clip so VIF reports as a large finite

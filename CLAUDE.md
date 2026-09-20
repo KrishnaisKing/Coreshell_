@@ -251,17 +251,25 @@ not yet merged to `main`):**
   formally tracked alongside the others in `csv/physics_sanity_checks.csv` /
   `plots/physics_sanity_checks.png`.
 - [x] Multicollinearity check (VIF) across the full feature set — `multicollinearity_check.py` (manual
-  VIF via `sklearn.LinearRegression`, no `statsmodels` dependency added). **Result: every VIF ≈ 1.0** —
-  essentially no linear multicollinearity anywhere, `band_align_*` included. **Read this result carefully,
-  don't take it as "the feature redundancy is fine after all":** VIF only detects *linear* relationships.
-  `band_alignment` is a deterministic function of `dE_LUMO_eV`/`dE_HOMO_eV`, but via a sign/threshold rule
-  (a classification boundary), which a linear regression cannot fit (R²≈0) even though the mapping is 100%
-  deterministic — the same reason the raw Pearson correlations between the offsets and any target were
-  always weak despite those offsets clearly driving predictions. So: VIF confirms this feature set would be
-  safe for a genuinely linear/coefficient-based model, but says nothing about the risk for tree splits or
-  a SISSO-style symbolic-regression model, both of which *can* exploit non-linear structure and would still
-  hit the redundancy already documented under "Verified data/pipeline caveats." The feature-redundancy
-  decision (Tier 1, item 6) is still open — this check didn't close it, and shouldn't be read as having done so.
+  VIF via `sklearn.LinearRegression`, no `statsmodels` dependency added). **First version of this check had
+  a real numerical bug, caught by the user from an oddly-flat plot, not by inspection of the code**: fitting
+  VIF's regressions on unstandardized features gave every single feature a VIF of exactly 1.00, including
+  `dE_LUMO_eV`/`dE_HOMO_eV`, which are independently known to correlate at r=-0.75. Cause: `Nt_cm3` spans
+  1e15-1e19 while every other feature is O(1)-O(300) — a condition number far beyond float64's ~15-16
+  digits of precision, so `LinearRegression`'s solver silently returned garbage (R²≈0.00002) for every
+  feature. VIF's true value is scale-invariant, but the least-squares fit used to compute it is not at this
+  magnitude spread. Fixed by standardizing features before fitting (doesn't change the true VIF, only the
+  numerical stability of computing it).
+  **Corrected result:** the 4 `band_align_*` one-hots show VIF ≈ 1×10¹⁰ when all 4 are included together —
+  the "dummy variable trap" predicted in this script's own docstring, now actually visible. `dE_LUMO_eV`
+  and `dE_HOMO_eV` show a real, moderate VIF ≈ 4 (consistent with r=-0.75) — a genuine *linear* relationship
+  between the two continuous offsets, independent of the non-linear band-alignment question below. With the
+  one-hot reference dropped, the one-hots' residual VIF is mild (1.1–1.45) — so the earlier claim that
+  `band_alignment`'s redundancy is mostly invisible to a linear test still holds for *that specific*
+  relationship, but "VIF confirms no linear multicollinearity anywhere" was simply wrong, not just
+  imprecise. This adds real quantitative weight to the still-open Tier 1 feature-redundancy decision
+  (item 6): there IS a moderate linear reason, not just the non-linear one, to not carry both continuous
+  offsets and the full one-hot set together in a coefficient-based model.
 - [x] Uncertainty quantification — `uncertainty_quantification.py`, XGBoost's native
   `reg:quantileerror` objective (`quantile_alpha=[0.1, 0.5, 0.9]`, no new dependency, same hyperparameters/
   features/split as `kmeans_xgboost_train.py`) gives an 80% prediction interval per candidate. **Result
