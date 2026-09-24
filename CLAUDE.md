@@ -230,9 +230,17 @@ Update this checklist's status markers as work lands — don't let it go stale. 
 - [x] Hardcoded fake numbers in plot scripts (`plot.py`'s CV bars, NN feature-importance panels) —
   fixed, `657124f`.
 - [x] Missing NN retention-time model (run had been manually terminated) — trained, `5ca45bd`.
-- [ ] Inverted Type I→III `hysteresis_window_V` ordering (contradicts band-confinement theory) — **open,
-  blocked on asking faculty how `synthetic_rs_dataset_fixed__1_.csv` was generated**; can't be root-caused
-  from the data alone (see "Verified data/pipeline caveats" below).
+- [~] Inverted Type I→III `hysteresis_window_V` ordering (contradicts band-confinement theory) —
+  **partially answered, not resolved.** Faculty confirmed the underlying material data was extracted from
+  Materials Project using AI assistance. This explains *provenance* (where `core_Eg_eV`, `core_chi_eV`,
+  `shell_Eg_eV`, `shell_chi_eV` etc. came from) but not the *mechanism* — it doesn't by itself say why
+  `hysteresis_window_V` increases toward Type III instead of decreasing. New candidate hypothesis worth
+  checking: bulk AI-assisted extraction across ~1444 materials is exactly the kind of process where a
+  systematic error (e.g. core/shell role swapped for some fraction of candidates, or a sign-convention
+  mistake in χ/Eg extraction) could silently scramble the `band_alignment` classification relative to the
+  true physical roles, without affecting `dE_LUMO_eV`/`dE_HOMO_eV`'s magnitude — which would produce
+  exactly this kind of "right features, wrong label" pattern. Not confirmed; still can't be fully
+  root-caused from the data alone, but now has a concrete, checkable lead instead of an unknown.
 
 **Tier 1 — core validation gaps (needed before any accuracy claim is credible; on `core-validation-gaps`,
 not yet merged to `main`):**
