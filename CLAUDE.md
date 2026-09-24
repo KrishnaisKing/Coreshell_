@@ -230,8 +230,11 @@ an ML-for-materials framing; J. Mater. Chem. C or Nanoscale for a materials-chem
 "essential" figure set doesn't exist yet in `plot*.py`: (1) a parity plot on a **grouped or
 leave-one-material-out** held-out set specifically (not the current candidate-pair split framed as such),
 (2) a SHAP/feature-importance plot, (3) a model-vs-real-experimental-data benchmark. That third figure
-requires an actual measured core-shell RS dataset, which does not currently exist anywhere in this repo —
-everything here traces back to the LHS-sampled simulator output (`synthetic_rs_dataset_fixed__1_.csv`).
+needs measured device data; only a small, partial seed exists so far (`experimental_benchmark/`, see Tier 3).
+All training data traces back to the faculty-provided `synthetic_rs_dataset_fixed__1_.csv`.
+
+**`experimental_benchmark/` is real literature data, not training data** — kept out of `csv/` deliberately
+so no script picks it up by accident. No script reads it yet.
 
 ## Fix/validation roadmap (tiered by priority)
 
@@ -355,8 +358,14 @@ not yet merged to `main`):**
   here too, and hasn't been checked yet.
 
 **Tier 3 — blocked on external input:**
-- [ ] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — no measured core-shell RS
-  dataset exists anywhere in this repo to benchmark against.
+- [~] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — **partial seed only.**
+  `experimental_benchmark/real_measured_data.csv` has 4 measured data points from 4 cited papers (sources
+  and caveats in `experimental_benchmark/SOURCES.md`), found in one web-search pass, not a systematic
+  review. Only 2 rows (CdSe/ZnS, 2-terminal) match this project's device class; the other 2 are 3-terminal
+  floating-gate transistors whose gate-voltage "memory window" (77–140 V) is not the same quantity as
+  `hysteresis_window_V` (~0–1.1 V here). No row reports all three targets. Usable today only for a limited
+  `on_off_ratio` sanity comparison against the CdSe/ZnS rows — not enough for the actual benchmark figure,
+  which still needs a deeper search (full texts, CdSe/ZnS-family papers specifically).
 
 **Tier 4 — doc's optional/"if space allows" items (not started):**
 - [ ] Residual-by-input-region plot (flag where error concentrates, e.g. thin shells, high trap density).
