@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 An ML pipeline that predicts resistive-switching (memristor-like) device metrics — `hysteresis_window_V`,
-`log10_on_off_ratio`, `log10_retention_tau_s` — for Type I core/shell nanocrystal candidates, from
-material/device descriptors (band offsets, shell thickness, trap density, dielectric constant, lattice
+`log10_on_off_ratio`, `log10_retention_tau_s` — for core/shell nanocrystal candidates, from
+material/device descriptors (the project is framed around Type I pairs, but only 29% of the 2000 candidates
+are Type I — 51% are Type II, 20% Type III; nothing filters to Type I, `band_alignment` is just a feature) (band offsets, shell thickness, trap density, dielectric constant, lattice
 mismatch, etc.). There is no package manifest (no `requirements.txt`/`pyproject.toml`) and no test suite;
 it's a set of standalone scripts run in sequence, each reading/writing by hardcoded relative path (no CLI
 args) — paths are relative to the repo root regardless of which subfolder the script itself lives in, so
@@ -99,9 +100,18 @@ the saved model JSON, NN importances from permutation importance (mean drop in t
   otherwise-seen materials. Test fraction is a side effect of how densely held-out materials are reused
   across pairs, not a tunable target.
 
-`nn_model.py` holds `TabularResNet`, the NN feature engineering, and `permutation_importance()`. Keep the
-split logic only in `split_utils.py` — `nn_permutation_importance.py` depends on reproducing the exact
-test set of a previous `nn.py` run and verifies this against `csv/predictions_nn_*.csv` before computing.
+`nn_model.py` holds `TabularResNet`, the NN feature engineering, `permutation_importance()`,
+`inner_split_and_scaler()` (the validation carve-out + feature scaler every saved NN was trained with) and
+`TORCH_THREADS`. Keep the split logic only in `split_utils.py` and NN preprocessing only in `nn_model.py` —
+`nn_permutation_importance.py` depends on reproducing `nn.py`'s preprocessing exactly. Its guard re-predicts
+the test set with each saved model and refuses to run unless the result matches
+`csv/predictions_nn_*.csv` to 1e-4. **Why the guard is that strict:** an earlier version only compared
+candidate IDs, and passed while the script fit its scaler on the full `train_df` after `nn.py` had moved to
+fitting on `inner_train_df` — feeding every model shifted inputs (retention predictions off by up to 2.07
+log10 units, i.e. ~100x in retention time) and silently computing importances against degraded models.
+Thread count is shared too: it changes floating-point summation order, so a mismatch breaks bit-for-bit
+reproduction. With matching preprocessing, dtype and threads, the script reproduces `nn.py`'s importance
+CSVs bit-for-bit.
 
 **`split_strategy_comparison.py`** trains one XGBoost model per (strategy × target) — 9 fits — and plots
 test R² grouped by target. `hysteresis_window_V` and `log10_on_off_ratio` are stable across all three
@@ -138,7 +148,7 @@ extremely seed-dependent** (10-seed range 0.355–0.909, std 0.203) versus hyste
 ratio (std 0.028) being an order of magnitude tighter. A single retention R² number, from any seed, should
 not be quoted without this spread alongside it.
 
-**NN training speed:** `nn.py` uses batch size 128, `torch.set_num_threads(4)` and manual index batching
+**NN training speed:** `nn.py` uses batch size 128, `torch.set_num_threads(TORCH_THREADS)` (4, set in `nn_model.py`) and manual index batching
 (no DataLoader). The original batch-32 / 16-thread / DataLoader setup took ~2.7 min per target because
 per-step overhead and thread contention dominated for a model this small — 4 threads beat 16 by ~2x. The
 larger batch also improved held-out R² on all three targets, not just speed. Don't "optimize" back to
@@ -146,8 +156,10 @@ small batches or all cores without re-measuring.
 
 ## Architecture
 
-**Upstream (not in this repo):** a Materials Project screening step selecting Type I band-aligned
-core/shell candidate pairs. Its output is what `synthetic_rs_dataset_fixed__1_.csv` derives from.
+**Upstream (not in this repo):** `synthetic_rs_dataset_fixed__1_.csv` was provided by faculty, who
+extracted the material properties from Materials Project with AI assistance. The screening did **not**
+restrict to Type I pairs (see the class split above). How the device metrics (hysteresis, on/off ratio,
+retention) were computed from those material properties is not known — no generator script is in this repo.
 
 **`Prepare_real_candidates.py`** — adapter/harmonization layer. Renames the real MP-screened dataset's
 columns (`dEc_eV`, `dEv_eV`, `shell_thickness_nm`, ...) into the schema the training scripts expect
@@ -241,6 +253,12 @@ Update this checklist's status markers as work lands — don't let it go stale. 
   true physical roles, without affecting `dE_LUMO_eV`/`dE_HOMO_eV`'s magnitude — which would produce
   exactly this kind of "right features, wrong label" pattern. Not confirmed; still can't be fully
   root-caused from the data alone, but now has a concrete, checkable lead instead of an unknown.
+  **Second, independent piece of evidence** (from `physics_sanity_checks.py`'s diagnostics): hysteresis
+  depends on |dE_LUMO_eV|/|dE_HOMO_eV| just as strongly in Type II/III rows as in Type I rows, although
+  those offsets aren't confining barriers outside Type I. That points at the label-generation step
+  treating |offset| as a barrier regardless of alignment type — a different mechanism from the
+  role-swap hypothesis above, and one that would produce the inverted ordering by itself. Worth asking
+  faculty specifically how hysteresis was computed from the offsets.
 
 **Tier 1 — core validation gaps (needed before any accuracy claim is credible; on `core-validation-gaps`,
 not yet merged to `main`):**
@@ -287,11 +305,20 @@ not yet merged to `main`):**
 - [x] Formalize the monotonicity sanity checks as a saved script — `physics_sanity_checks.py`. Bins each
   driver into deciles, reports Spearman rho (a direct monotonicity measure, unlike Pearson) against the
   theoretically-expected sign. **5/6 pass**: hysteresis increases with trap density (rho=+0.77) and with
-  both barrier heights |dE_LUMO_eV|/|dE_HOMO_eV| (rho=+0.12/+0.13); on/off ratio falls with shell thickness
-  (rho=-0.14); retention rises with shell thickness (rho=+0.11). The one failure is the already-documented
-  `band_alignment` ordering (see "Verified data/pipeline caveats" below) — not a new finding, just now
-  formally tracked alongside the others in `csv/physics_sanity_checks.csv` /
+  both barrier heights |dE_LUMO_eV|/|dE_HOMO_eV| (rho=+0.10/+0.13, Type I rows only); on/off ratio falls with
+  shell thickness (rho=-0.14); retention rises with shell thickness (rho=+0.11). The one failure is the
+  already-documented `band_alignment` ordering (see "Verified data/pipeline caveats" below) — not a new
+  finding, just now formally tracked alongside the others in `csv/physics_sanity_checks.csv` /
   `plots/physics_sanity_checks.png`.
+  **Correction from a later audit:** the barrier-height checks originally ran on all rows, but |offset| is
+  only a confining barrier for Type I pairs — for Type II/III it isn't a barrier in that sense, so the
+  original check mixed physically different quantities. Now restricted to Type I (the conclusion held:
+  +0.12/+0.13 on all rows vs +0.10/+0.13 on Type I). **The restriction surfaced a real finding**, recorded as
+  a non-pass/fail diagnostic: Type II/III rows show the same dependence on |offset| as Type I rows (rho=+0.10
+  /+0.11 vs +0.10/+0.13), even though physics expects it to matter much less where there's no confining
+  barrier. Whatever computed these labels appears to treat |offset| as a barrier regardless of alignment
+  type — which on its own would explain why Type III doesn't show *less* hysteresis than Type I. Evidence
+  for the Tier 0 question, not proof.
 - [x] Multicollinearity check (VIF) across the full feature set — `multicollinearity_check.py` (manual
   VIF via `sklearn.LinearRegression`, no `statsmodels` dependency added). **First version of this check had
   a real numerical bug, caught by the user from an oddly-flat plot, not by inspection of the code**: fitting

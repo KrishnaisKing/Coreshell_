@@ -11,26 +11,22 @@ import torch.optim as optim
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error
-from sklearn.model_selection import GroupShuffleSplit
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
-from nn_model import add_engineered_features, feature_columns, TabularResNet, predict, permutation_importance
+from nn_model import (TORCH_THREADS, add_engineered_features, feature_columns, inner_split_and_scaler,
+                      TabularResNet, predict, permutation_importance)
 
-# The model is tiny (14 inputs, 128 hidden); letting torch spread each op across all
-# cores costs more in thread contention than it gains. 4 threads beats 16 by ~2x here.
-torch.set_num_threads(4)
+torch.set_num_threads(TORCH_THREADS)
 torch.manual_seed(RANDOM_STATE)
 np.random.seed(RANDOM_STATE)
 
 EPOCHS = 200
 BATCH_SIZE = 128
 LR = 2e-3
-VAL_FRAC = 0.15          # carved out of train_df, grouped by candidate, for early stopping only
-WARMUP_EPOCHS = 40       # don't let patience start counting until training has had a chance to anneal
+WARMUP_EPOCHS = 40      # don't let patience start counting until training has had a chance to anneal
 PATIENCE = 30            # post-warmup epochs without validation R^2 improvement before stopping
 MIN_DELTA = 1e-4
 
@@ -47,12 +43,11 @@ train_df, test_df = candidate_split(df)
 # instead of the requested 15% when tried here). Validation just needs a clean,
 # correctly-sized, same-distribution held-out slice for early stopping -- it isn't
 # meant to be another extrapolation test.
-gss = GroupShuffleSplit(n_splits=1, test_size=VAL_FRAC, random_state=RANDOM_STATE + 1)
-inner_idx, val_idx = next(gss.split(train_df, groups=train_df["candidate_id"]))
-inner_train_df = train_df.iloc[inner_idx].copy()
-val_df = train_df.iloc[val_idx].copy()
-assert set(inner_train_df["candidate_id"]) & set(val_df["candidate_id"]) == set()
 feature_cols = feature_columns(df)
+# Scaler is fit on inner_train only, so validation and test are both genuinely held
+# out from anything the model or scaler has seen. Built in nn_model.py so
+# nn_permutation_importance.py reproduces exactly the same preprocessing.
+inner_train_df, val_df, scaler = inner_split_and_scaler(train_df, feature_cols, RANDOM_STATE)
 
 # ---------------------------------------------------------------
 # 2. Training Loop (early-stopped on a held-out validation fold)
@@ -64,10 +59,7 @@ for target_col in target_cols:
     if target_col not in df.columns:
         continue
 
-    # Scale Features -- scaler fit on inner_train only, so validation and test
-    # are both genuinely held out from anything the model or scaler has seen.
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(inner_train_df[feature_cols].values)
+    X_train = scaler.transform(inner_train_df[feature_cols].values)
     y_train = inner_train_df[target_col].values.astype(np.float32).reshape(-1, 1)
 
     X_val = scaler.transform(val_df[feature_cols].values)
