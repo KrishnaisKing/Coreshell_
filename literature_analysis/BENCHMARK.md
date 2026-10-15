@@ -20,7 +20,11 @@ Regenerate everything here with `python scripts/literature/model_vs_experiment.p
    (real: 3.4–4.8 eV), band gaps are 2–3× too small, and ZnS's dielectric constant is 53.6 (real: 8–10).
    Applying the dataset's own classification rule to its own values labels **InP/ZnSe, a well-established
    type-I pair, as type III**. This is the strongest evidence so far for the Tier 0 data-provenance question.
-4. **Hysteresis is not benchmarked.** Papers report set/reset voltages of bipolar sweeps (a 3.6–7 V span
+4. **The symbolic-regression equations (methodology paper) don't do better on real devices.** Within the
+   training trap-density range they hit the same on/off ceiling as XGBoost and the NN. They reach the
+   ~1,000–2,200 devices only if trap density is pushed 2–70× beyond anything in the training data. That
+   shows the equations can *represent* these devices, not that they *predict* them (see below).
+5. **Hysteresis is not benchmarked.** Papers report set/reset voltages of bipolar sweeps (a 3.6–7 V span
    for these devices). That is a different quantity from this project's `hysteresis_window_V`, and it is
    also above the largest hysteresis value in the training data.
 
@@ -43,6 +47,8 @@ grid):
 The model's answer for a device is the band of predictions over that grid, not a single number. A
 measurement "is reproduced" if it falls inside the band. The trap densities that reproduce it to within a
 factor of 2 are listed in `benchmark_results.csv`.
+
+**Three models.** The saved XGBoost and NN models, plus the symbolic-regression equations (see below).
 
 **Two sources for material inputs.**
 - *Dataset*: band offsets and dielectric constant computed from the training dataset's own values for
@@ -80,6 +86,38 @@ XGBoost's band is narrow (~10⁷·⁷–10⁸·⁴ s). With literature inputs it
 (~10²·⁵–10⁹·⁷ s). This matches the earlier finding that retention is driven by the band offsets, and those
 offsets are exactly the inputs the dataset gets wrong. So the dataset's unphysical material values matter
 most for retention.
+
+### Symbolic-regression equations
+
+The third model is the physics-constrained symbolic regression from `scripts/symbolic_model.py`. It is fit
+on the same seed-42 training split as the saved XGBoost/NN models:
+
+- `log10 on/off = −3.98 + 0.01493·(lgNt)² + 1.641·√Bmax − 8.644·Bmax/lgNt`
+- `log10 retention = −23.22 + 48.39·√Bmax − 18.88·Bmax + 0.735·Bmax²`
+
+Here `lgNt` = log10 of trap density and `Bmax` = max(|dE_LUMO|, |dE_HOMO|).
+
+Unlike tree models, an equation can predict beyond the training labels. So for the equations only, a
+measurement the normal Nt sweep can't reach is re-checked with Nt extended up to 1×10²¹ cm⁻³
+(`Nt_extended_reproducing` in `benchmark_results.csv`).
+
+| Device | Measured on/off | Equation median, dataset / literature inputs | Reproduced in the training Nt range? | Nt needed if extended |
+|---|---|---|---|---|
+| Kannan 2013 | ~1,000 | 28 / 30 | Literature inputs only, at the top edge (1×10¹⁹) | 2×10¹⁹–1.5×10²⁰ (dataset inputs) |
+| Kannan 2016 | 100 | 28 / 30 | **Yes**, 2×10¹⁷–5×10¹⁸ | — |
+| Yagati 2017 | ~1,000 | 28 / 30 | Literature inputs only, at the top edge (1×10¹⁹) | 2×10¹⁹–1.5×10²⁰ (dataset inputs) |
+| Kim 2021 | 2,200 | 28 / 30 | **No** | 5×10¹⁹–7×10²⁰ |
+| Kim 2018, InP/ZnSe | 420 | 35 / 25 | Within ×2 at 3×10¹⁸–1×10¹⁹, but just outside the band with literature inputs (max 2.60 vs 2.62) | — |
+
+- **The extended-Nt matches are extrapolation, not validation.** Those trap densities are 2–70× past the
+  training maximum, and ~10²⁰ cm⁻³ is physically very high. They also rest on an on/off law learned from
+  labels this report already shows are built on unphysical inputs.
+- **Within the training range, the equations are slightly worse than XGBoost/NN.** Their median is about
+  0.2 log10 lower, and they miss InP/ZnSe with literature inputs, where XGBoost/NN don't.
+- **Retention:** all models are consistent with both lower bounds. With dataset inputs the equation gives one
+  value per device, 10⁶·⁶ s, not a band, because it depends only on `Bmax` and each pair has one `Bmax`. That
+  is the same finding as the methodology work: the training labels' retention ignores shell thickness, trap
+  density and voltage. With literature inputs the band is 10⁴·⁴–10⁹·⁰ s (XGBoost: 10²·⁵–10⁹·⁷ s).
 
 ### Provenance: the dataset's values vs. literature (`provenance_check.csv`)
 

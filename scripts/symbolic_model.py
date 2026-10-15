@@ -294,6 +294,15 @@ class SparseSymbolicRegressor:
             bs = b[combos]
             beta = np.linalg.solve(Gs, bs[..., None])[..., 0]
             rss = yy - (bs * beta).sum(axis=1)
+            # Linearly dependent subsets (e.g. {a-b, a, b}) are degenerate, not d-term models:
+            # pairwise dedupe can't catch them. Gs/n is a correlation matrix (+ the ridge), so its
+            # determinant is ~0 exactly when the subset is (near-)dependent. Found on noise-free
+            # labels in recovery_test.py, where such a subset ties the true 2-term model on RSS.
+            # The threshold must sit well above the ridge's own floor: an exactly dependent triple
+            # measured det = 2e-8 because of the ridge (a first version used 1e-8 and missed it);
+            # healthy subsets measured ~0.5.
+            if d > 1:
+                rss[np.linalg.det(Gs / n) < 1e-6] = np.inf
             top = np.argsort(rss)[:self.n_check]
             chosen = None
             for rank, k in enumerate(top):
@@ -326,8 +335,15 @@ class SparseSymbolicRegressor:
         return y_mean + ((Fsel - mu[model["idx"]]) / sd[model["idx"]]) @ model["beta_std"]
 
     # ---------- public API ----------
-    def fit(self, df, y, groups, n_folds=5):
+    def fit(self, df, y, groups=None, n_folds=5, n_terms=None):
+        """n_terms=None picks the number of terms by grouped inner CV (needs groups);
+        an explicit n_terms skips the CV (used by bootstrap refits of an already-chosen d)."""
         y = np.asarray(y, float)
+        if n_terms is not None:
+            self.cv_rmse_, self.n_terms_ = {}, n_terms
+            self.lib_, self.mu_, self.sd_, self.models_, self.y_mean_ = self._fit_all_d(df, y)
+            self.model_ = self.models_[n_terms]
+            return self
         # inner grouped CV over d, on the training set only
         cv_rmse = {d: [] for d in range(1, self.max_terms + 1)}
         for tr, va in GroupKFold(n_folds).split(df, y, groups):

@@ -29,6 +29,14 @@ Outputs:
   literature_analysis/benchmark_results.csv
   literature_analysis/model_vs_experiment.png
 
+Three models: the saved XGBoost and NN, and the physics-constrained symbolic
+regression equations (scripts/symbolic_model.py), fit here on the same seed-42
+candidate_split() training set (deterministic, ~5 s). The equations can predict
+outside the training label range, so for them only, a measurement the in-range Nt
+sweep can't reach is also checked against an extended sweep up to 1e21 cm^-3 --
+reported separately (Nt_extended_reproducing), since that is extrapolation beyond
+every trap density in the training data.
+
 hysteresis_window_V is deliberately not benchmarked: papers report set/reset
 voltages of bipolar sweeps (a 3.6-7 V span here), which is a different quantity
 from this project's same-current branch separation, and also exceeds the label
@@ -50,6 +58,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from split_utils import RANDOM_STATE, load_dataset, candidate_split
 from nn_model import (TORCH_THREADS, add_engineered_features, feature_columns, inner_split_and_scaler,
                       TabularResNet, predict)
+from symbolic_model import SparseSymbolicRegressor, CONSTRAINTS
 
 torch.set_num_threads(TORCH_THREADS)
 
@@ -70,6 +79,8 @@ SHELL_GRID_NM = [0.3, 0.5, 0.7, 1.0]
 CORE_GRID_NM = [1.5, 2.0, 2.5, 3.0]
 VMAX_GRID_V = [1.0, 2.0, 3.0, 4.0, 5.0]
 N_NT = 25
+NT_EXTENDED_MAX = 1e21  # symbolic-regression-only extrapolation check, see docstring
+MODEL_NAMES = ("XGBoost", "NN", "Symbolic")
 MATCH_TOL_LOG10 = np.log10(2)  # "reproduces the measurement" = within a factor of 2
 
 
@@ -129,11 +140,16 @@ for target in TARGETS:
     nm.load_state_dict(torch.load(f"nn_model_{target}.pt"))
     models[(target, "XGBoost")] = ("xgb", xm)
     models[(target, "NN")] = ("nn", nm)
+    sm = SparseSymbolicRegressor(constraints=CONSTRAINTS[target])
+    sm.fit(train_df, train_df[target], groups=train_df["candidate_id"])
+    print(f"[symbolic] {sm.equation(target=target)}")
+    models[(target, "Symbolic")] = ("sr", sm)
 
 train_ranges = {c: (df[c].min(), df[c].max()) for c in
                 ["dE_LUMO_eV", "dE_HOMO_eV", "shell_thick_nm", "core_radius_nm", "Nt_cm3", "eps_shell", "Vmax_V"]}
 target_ranges = {t: (df[t].min(), df[t].max()) for t in TARGETS}
 nt_grid = np.logspace(np.log10(train_ranges["Nt_cm3"][0]), np.log10(train_ranges["Nt_cm3"][1]), N_NT)
+nt_grid_extended = np.logspace(np.log10(train_ranges["Nt_cm3"][1]), np.log10(NT_EXTENDED_MAX), 13)[1:]
 
 # ---------------------------------------------------------------
 # 2. Provenance check: dataset-extracted values vs literature
@@ -193,7 +209,7 @@ print(prov[["item", "property", "dataset_value", "literature_low", "literature_h
 # ---------------------------------------------------------------
 # 3. Build each device's input grid and predict
 # ---------------------------------------------------------------
-def device_grid(dev, source):
+def device_grid(dev, source, nt_values=None):
     pin = pair_inputs[f"{dev['core']}/{dev['shell']}"][source]
     if pd.notna(dev["qd_diameter_nm"]):
         geoms = [(dev["qd_diameter_nm"] / 2 - t, t) for t in SHELL_GRID_NM]
@@ -202,7 +218,8 @@ def device_grid(dev, source):
     vmaxes = [dev["sweep_vmax_V"]] if pd.notna(dev["sweep_vmax_V"]) else VMAX_GRID_V
     rows = []
     for dEc, dEv, eps, (r, t), vmax, nt in itertools.product(pin["dE_LUMO"], pin["dE_HOMO"], pin["eps"],
-                                                             geoms, vmaxes, nt_grid):
+                                                             geoms, vmaxes,
+                                                             nt_grid if nt_values is None else nt_values):
         row = {"dE_LUMO_eV": dEc, "dE_HOMO_eV": dEv, "shell_thick_nm": t, "core_radius_nm": r,
                "Nt_cm3": nt, "eps_shell": eps, "Vmax_V": vmax}
         row.update({col: int(label == pin["band_alignment"]) for label, col in BAND_ALIGN_COLS.items()})
@@ -217,6 +234,8 @@ def device_grid(dev, source):
 def run_model(kind, model, grid):
     if kind == "xgb":
         return model.predict(grid[model.get_booster().feature_names])
+    if kind == "sr":
+        return model.predict(grid)
     g = add_engineered_features(grid.copy())
     return predict(model, nn_scaler.transform(g[nn_feature_cols].values))
 
@@ -246,7 +265,7 @@ for _, dev in devices[devices["modelled"].astype(str) == "True"].iterrows():
             meas = np.log10(dev[meas_col])
             # String compare: the column has blanks, so pandas may read it as text, and bool("False") is True.
             lower_bound = target == "log10_retention_tau_s" and str(dev["retention_is_lower_bound"]) == "True"
-            for model_name in ("XGBoost", "NN"):
+            for model_name in MODEL_NAMES:
                 kind, model = models[(target, model_name)]
                 pred = run_model(kind, model, grid)
                 q = np.percentile(pred, [0, 10, 50, 90, 100])
@@ -268,6 +287,12 @@ for _, dev in devices[devices["modelled"].astype(str) == "True"].iterrows():
                                 "median_minus_measured": q[2] - meas,
                                 "Nt_reproducing_measurement": (f"{grid.Nt_cm3[match].min():.1e}-{grid.Nt_cm3[match].max():.1e}"
                                                                if match.any() else "none in training range")})
+                    if kind == "sr" and not match.any():
+                        ext_grid, _ = device_grid(dev, source, nt_grid_extended)
+                        ext_match = np.abs(run_model(kind, model, ext_grid) - meas) <= MATCH_TOL_LOG10
+                        row["Nt_extended_reproducing"] = (
+                            f"{ext_grid.Nt_cm3[ext_match].min():.1e}-{ext_grid.Nt_cm3[ext_match].max():.1e}"
+                            if ext_match.any() else f"none up to {NT_EXTENDED_MAX:.0e}")
                 result_rows.append(row)
                 plot_data.append(row)
 
@@ -284,13 +309,14 @@ print(results[cols].round(2).to_string(index=False))
 # ---------------------------------------------------------------
 SURFACE, INK, INK_2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 SOURCE_COLOR = {"dataset": "#2a78d6", "literature": "#eb6834"}  # validated palette slots 1-2
-MODEL_MARKER = {"XGBoost": "o", "NN": "s"}
-OFFSETS = {("XGBoost", "dataset"): -0.27, ("XGBoost", "literature"): -0.09,
-           ("NN", "dataset"): 0.09, ("NN", "literature"): 0.27}
+MODEL_MARKER = {"XGBoost": "o", "NN": "s", "Symbolic": "D"}
+OFFSETS = {("XGBoost", "dataset"): -0.35, ("XGBoost", "literature"): -0.21,
+           ("NN", "dataset"): -0.07, ("NN", "literature"): 0.07,
+           ("Symbolic", "dataset"): 0.21, ("Symbolic", "literature"): 0.35}
 TITLES = {"log10_on_off_ratio": "On/off ratio", "log10_retention_tau_s": "Retention time (s)"}
 
 pdata = pd.DataFrame(plot_data)
-fig, axes = plt.subplots(1, 2, figsize=(14, 6.2), dpi=200, gridspec_kw={"width_ratios": [5, 2.4]})
+fig, axes = plt.subplots(1, 2, figsize=(16, 6.2), dpi=200, gridspec_kw={"width_ratios": [5, 2.4]})
 fig.patch.set_facecolor(SURFACE)
 for ax, target in zip(axes, TARGETS):
     sub = pdata[pdata.target == target]
@@ -299,7 +325,7 @@ for ax, target in zip(axes, TARGETS):
     lo, hi = target_ranges[target]
     ax.axhspan(lo, hi, color="#efeeea", zorder=0)
     if target == "log10_on_off_ratio":
-        # The key finding: tree models can't predict above the highest label they were trained on.
+        # Tree models can't predict above the highest label they were trained on.
         ax.annotate(f"highest on/off in training data (~{10 ** hi:,.0f})", (len(dict.fromkeys(sub.device_id)) - 0.42, hi),
                     xytext=(0, 3), textcoords="offset points", ha="right", va="bottom", fontsize=8, color=INK_2)
     for i, dev_id in enumerate(dev_ids):
@@ -335,6 +361,7 @@ legend_items = [
     Line2D([], [], color=SOURCE_COLOR["literature"], lw=4, label="Inputs from literature values"),
     Line2D([], [], color=INK_2, marker="o", lw=0, ms=8, label="XGBoost median"),
     Line2D([], [], color=INK_2, marker="s", lw=0, ms=8, label="NN median"),
+    Line2D([], [], color=INK_2, marker="D", lw=0, ms=7, label="Symbolic-regression median"),
     Line2D([], [], color=INK, marker="*", lw=0, ms=14, label="Measured"),
     Line2D([], [], color=INK, marker="^", lw=0, ms=11, label="Measured lower bound (stable for at least)"),
     plt.Rectangle((0, 0), 1, 1, color="#efeeea", label="Range of training labels"),

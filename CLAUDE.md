@@ -27,19 +27,21 @@ scripts/
 │                        #         feature_range_split()
 ├── nn_model.py          # shared: TabularResNet, NN feature engineering, train_tabular_resnet(), permutation_importance()
 ├── symbolic_model.py    # shared: physics-constrained sparse symbolic regression (SISSO-style), methodology paper
+├── model_fits.py        # shared: fit_sr / fit_xgb / fit_nn, so every methodology comparison fits models identically
 ├── pipeline/            # Prepare_real_candidates.py, Latticmatch.py
 ├── training/            # kmeans_xgboost_train.py, nn.py, nn_permutation_importance.py
-├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py, plot_symbolic_split_comparison.py
+├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py, plot_symbolic_split_comparison.py,
+│                        # plot_recovery_test.py, plot_symbolic_uncertainty.py
 ├── validation/          # split_strategy_comparison.py, retention_extrapolation_check.py,
 │                        # repeated_split_evaluation.py, physics_sanity_checks.py,
 │                        # multicollinearity_check.py, uncertainty_quantification.py,
-│                        # symbolic_split_comparison.py
-├── symbolic/            # fit_symbolic.py (methodology paper step 1)
+│                        # symbolic_split_comparison.py, symbolic_uncertainty.py
+├── symbolic/            # fit_symbolic.py, recovery_test.py (methodology paper steps 1, 3)
 ├── literature/          # model_vs_experiment.py (Tier 3; reads and writes literature_analysis/)
 └── dataset/             # build_curated_dataset.py (Option B; reads and writes curated_dataset/)
 ```
 
-`split_utils.py`/`nn_model.py`/`symbolic_model.py` stay directly under `scripts/` rather than in their own subfolder because
+`split_utils.py`/`nn_model.py`/`symbolic_model.py`/`model_fits.py` stay directly under `scripts/` rather than in their own subfolder because
 every other script imports them as siblings. Python only auto-adds a *script's own directory* to its import
 path, not the repo root or sibling folders — so every script under `pipeline/`, `training/`, or
 `validation/` that needs them starts with:
@@ -92,6 +94,10 @@ python scripts/validation/uncertainty_quantification.py    # 80% prediction inte
 python scripts/symbolic/fit_symbolic.py                    # symbolic-regression equations on the seed-42 grouped split -> csv/symbolic_equations.csv, csv/predictions_sr_*.csv (~10s)
 python scripts/validation/symbolic_split_comparison.py     # symbolic vs XGB vs NN, 6 split strategies, seeds 0-9 -> csv/symbolic_split_comparison{,_summary}.csv (~40 min awake, NN-dominated; pauses if the laptop sleeps)
 python scripts/plotting/plot_symbolic_split_comparison.py  # figure for the above, from the summary CSV -> plots/symbolic_split_comparison.png
+python scripts/symbolic/recovery_test.py                   # known-equation recovery on curated_dataset/ -> csv/recovery_test.csv, csv/recovery_extrapolation.csv (~8 min)
+python scripts/plotting/plot_recovery_test.py              # -> plots/recovery_test.png
+python scripts/validation/symbolic_uncertainty.py          # 80% intervals: SR conformal / SR bootstrap / XGB quantile -> csv/symbolic_uncertainty{,_summary}.csv (~30 min)
+python scripts/plotting/plot_symbolic_uncertainty.py       # -> plots/symbolic_uncertainty.png
 python scripts/literature/model_vs_experiment.py           # Tier 3 benchmark vs measured devices -> literature_analysis/{provenance_check,benchmark_inputs,benchmark_results}.csv, model_vs_experiment.png
 python scripts/dataset/build_curated_dataset.py            # Option B: cited material properties -> curated_dataset/candidates.csv (inputs only, labels empty)
 ```
@@ -289,11 +295,17 @@ Known gaps, documented in `curated_dataset/SOURCES.md`:
 
 The user is writing a **methodology paper** and wants a different approach from the NN + XGBoost pair.
 Chosen direction: sparse symbolic regression, i.e. an explicit equation of at most 3 terms per target.
-Steps 1–2 of the plan are done; the remaining steps are not started:
-3. a recovery test on `curated_dataset/` with labels from a *known* stated equation, to answer "you just
+All five planned steps are done:
+1. the method;
+2. comparison against XGB/NN across split strategies;
+3. a recovery test on `curated_dataset/` with labels from *known* stated equations, to answer "you just
    reverse-engineered the faculty generator";
 4. uncertainty quantification;
-5. rerunning the Tier 3 literature benchmark.
+5. adding the equations to the Tier 3 literature benchmark.
+
+The three model families are fit through `scripts/model_fits.py`, so every comparison uses identical
+fitting code. `nn.py`'s training loop lives in `nn_model.train_tabular_resnet()`; `nn.py` still
+reproduces its outputs byte-for-byte.
 
 **Method (`scripts/symbolic_model.py`).** SISSO-style sure-independence screening plus an exhaustive L0
 search over a ~330-descriptor library.
@@ -305,6 +317,11 @@ search over a ~330-descriptor library.
 - **Physics constraints:** the expected signs from `physics_sanity_checks.py`, checked as numerical
   derivatives on the training rows.
 - **Number of terms:** chosen by grouped inner CV on the training set (one-SE rule), never the test set.
+- **Degenerate subsets rejected:** linearly dependent term sets such as {a−b, a, b} are excluded from the
+  L0 search (correlation-matrix determinant < 1e-6). Found in step 3: on noise-free labels such a set ties
+  the true model. A first threshold of 1e-8 sat below the ridge's own floor (an exactly dependent triple
+  measures 2e-8) and missed it. Re-checked: neither threshold changes any of the 99 faculty-data comparison
+  fits.
 - **Speed:** ~2–4 s per fit.
 
 **Post-hoc library change — disclose it if writing this up.** The first full comparison allowed `exp(+x)`.
@@ -350,6 +367,73 @@ using them. **Any fix (e.g. a monotonicity or boundedness constraint on Bmax) is
 after seeing the barrier-range test.** It must be motivated by physics stated independently of that result,
 and re-validated on splits not used to motivate it. This is the same contamination issue as the XGBoost
 hyperparameters.
+
+**Step 3: known-equation recovery (`scripts/symbolic/recovery_test.py`, `plots/recovery_test.png`).**
+Labels for the 1,224 curated rows (cited, physical material values) come from three equations, stated in
+the script's docstring before any fitting:
+- **retention, in the library:** WKB escape through the lower confining barrier, m* = 0.1 mₑ:
+  `log10 τ = −2 + typeI + 0.137·typeI·wkb_min`.
+- **on/off, in the library:** `−2.5 + 0.30·lgNt − 0.03·wkb_max`.
+- **hysteresis, NOT in the library:** trapped-space-charge ΔV = Vmax·x/(1+x), x = qNt·t²/(2ε₀εVmax). It is
+  linear in Nt, but the library has only log10 Nt. With physical constants it spans only 0–0.08 V and
+  barely saturates. That is fine for its purpose but not on the faculty data's scale.
+
+Results, 10 seeds per noise level (σ = η·std of the clean label). Recovery means the same number of terms
+with the true terms in their span (the span check is needed because `{lgNt−wkb_max, lgNt}` is the same model
+family as `{lgNt, wkb_max}`):
+- **retention recovered** 10/10 at η ≤ 0.1, 7/10 at 0.2, 3/10 at 0.4. When the exact terms are found, the
+  median max coefficient error is 0.6% at η = 0.05 and 4.5% at 0.4.
+- **on/off recovered** 10/10 at every η > 0. At η = 0 it is 0/10: with exactly zero noise the one-SE rule
+  has no spread to work with and adds a superfluous third term. That is an artefact of noise-free data.
+- **Test R² vs the clean law** is ≥ 0.999 for both in-library laws at every noise level. Hysteresis (out of
+  library) reaches only 0.48: the method returns a reasonable `t·lgNt | t` surrogate, not the law.
+- **Extrapolation with a known answer (η = 0.1):** for both in-library laws the equations score
+  **R² = 1.000 on all three range splits**. XGB scores 0.50–0.98 and the NN −19.9 to 0.89. For the
+  out-of-library hysteresis law nobody extrapolates: Nt range R² is SR −0.41, XGB −0.31, NN −43.8, and XGB
+  is best on barrier/thickness ranges.
+
+**Conclusion for the paper:** the extrapolation advantage holds exactly when the true law is expressible in
+the library. That also explains the faculty-data barrier-range failure: the labels saturate at a ceiling,
+which no ≤3-term combination of this library represents.
+
+**Step 5: literature benchmark (`literature_analysis/BENCHMARK.md`, "Symbolic-regression equations").**
+- Within the training Nt range the equations hit the same on/off ceiling as XGB/NN, and they are slightly
+  worse (median ~0.2 log10 lower; they miss InP/ZnSe with literature inputs).
+- They reach the ~1,000–2,200 devices only at Nt 2–70× past the training maximum (`Nt_extended_reproducing`).
+  That is representable, not validated.
+- With dataset inputs, retention is a single value per device (10⁶·⁶ s), because the equation uses only Bmax.
+- XGB/NN benchmark rows are bit-identical to before.
+
+**Step 4: uncertainty (`scripts/validation/symbolic_uncertainty.py`, `plots/symbolic_uncertainty.png`).**
+80% intervals from three methods:
+- **SR split-conformal:** 20% of training candidates held out for calibration.
+- **SR candidate-bootstrap:** 30 refits, each re-running term selection, plus out-of-bag residual draws.
+- **XGB quantile regression:** the Tier 2 method.
+
+Coverage, mean ± std over seeds 0–9 (nominal 0.80):
+
+| split | target | SR conformal | SR bootstrap | XGB quantile |
+|---|---|---|---|---|
+| grouped | hysteresis | 0.77 ± 0.04 | 0.78 ± 0.03 | 0.77 ± 0.02 |
+| grouped | on/off | 0.77 ± 0.03 | 0.81 ± 0.05 | 0.70 ± 0.06 |
+| grouped | retention | 0.73 ± 0.06 | 0.74 ± 0.08 | **0.51 ± 0.13** |
+| leave-materials-out | all three | 0.80–0.81 | 0.80–0.84 | 0.76–0.77 |
+
+- **Grouped split:** the equations' intervals are better calibrated for on/off and retention.
+- **SR intervals are narrower for hysteresis/on-off and wider for retention** (~3.3 vs 2.9 log10).
+- **This answers the old Tier 2 question:** XGB's retention under-coverage (0.632 at seed 42; 0.51 ± 0.13
+  over seeds) is specific to the grouped offset-space extrapolation split. Under leave-materials-out, XGB
+  retention coverage is 0.76.
+- **Range splits mirror step 2 exactly:**
+  - *Nt range:* on/off coverage is SR 0.70–0.71 vs XGB **0.10**; 89% of the true values sit above XGB's
+    interval.
+  - *Barrier range:* the SR intervals collapse (on/off 0.18, retention 0.04, with 96% of true values above
+    the interval) while XGB holds 0.72/0.96.
+  - *Thickness range:* SR is worse (on/off 0.48, retention 0.61–0.65 vs XGB 0.63/0.76).
+- **No interval method rescues a structurally wrong extrapolation.** Conformal coverage assumes
+  exchangeability, which range splits break by design.
+- **Conformal and bootstrap agree closely;** bootstrap covers slightly more, at slightly more width. Conformal
+  needs one fit instead of 31 (~7× cheaper in wall time), so it is the practical default.
 
 ## Fix/validation roadmap (tiered by priority)
 
@@ -479,9 +563,10 @@ not yet merged to `main`):**
   out-of-distribution in the exact features (`dE_LUMO_eV`/`dE_HOMO_eV`) the split holds out on. Visually,
   `plots/uncertainty_quantification.png` shows the retention median saturating near the target's ceiling
   while true values scatter widely below it, well outside the band, for a large share of test candidates.
-  **Do not report retention's prediction intervals as reliable without re-running this against
-  `leave_materials_out_split()` first** — the same distinction that matters for R² almost certainly matters
-  here too, and hasn't been checked yet.
+  **Checked since, in `symbolic_uncertainty.py` (methodology step 4):** under `leave_materials_out_split()`,
+  XGB retention coverage is 0.76 over seeds 0–9. Under the grouped split it is 0.51 ± 0.13 over seeds 0–9
+  (seed 42's 0.632 was on the good side). So the miscalibration is specific to the grouped offset-space
+  extrapolation regime.
 
 **Tier 3 — model vs. real experiment:**
 - [~] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — **first version done,

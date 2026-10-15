@@ -1,29 +1,43 @@
-device_id,target,model,inputs,measured_log10,measured_is_lower_bound,pred_min,pred_p10,pred_median,pred_p90,pred_max,training_label_min,training_label_max,verdict,frac_grid_matching_x2,median_minus_measured,Nt_reproducing_measurement,frac_grid_consistent
-Kannan2013_CdSe_ZnS,log10_on_off_ratio,XGBoost,dataset,3,False,0.6327,0.8054,1.663,2.62,2.76,0.2575,2.952,outside predicted range,0.036,-1.337,6.8e+18-1.0e+19,
-Kannan2013_CdSe_ZnS,log10_on_off_ratio,NN,dataset,3,False,0.5691,0.754,1.663,2.641,2.904,0.2575,2.952,outside predicted range,0.07,-1.337,6.8e+18-1.0e+19,
-Kannan2013_CdSe_ZnS,log10_retention_tau_s,XGBoost,dataset,4.301,True,7.367,7.69,7.926,8.386,8.501,-6.077,10.07,consistent,,3.625,,1
-Kannan2013_CdSe_ZnS,log10_retention_tau_s,NN,dataset,4.301,True,4.657,5.209,6.47,7.727,8.219,-6.077,10.07,consistent,,2.169,,1
-Kannan2013_CdSe_ZnS,log10_on_off_ratio,XGBoost,literature,3,False,0.5778,0.8134,1.671,2.641,2.898,0.2575,2.952,outside predicted range,0.07422,-1.329,4.6e+18-1.0e+19,
-Kannan2013_CdSe_ZnS,log10_on_off_ratio,NN,literature,3,False,0.5517,0.7521,1.677,2.667,2.962,0.2575,2.952,outside predicted range,0.08489,-1.323,4.6e+18-1.0e+19,
-Kannan2013_CdSe_ZnS,log10_retention_tau_s,XGBoost,literature,4.301,True,1.782,2.485,8.281,9.666,9.935,-6.077,10.07,consistent,,3.98,,0.8889
-Kannan2013_CdSe_ZnS,log10_retention_tau_s,NN,literature,4.301,True,0.642,3.916,8.104,9.505,9.88,-6.077,10.07,consistent,,3.803,,0.8842
-Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,XGBoost,dataset,2,False,0.6398,0.8059,1.656,2.615,2.762,0.2575,2.952,within p10-p90,0.245,-0.3437,1.0e+17-2.2e+18,
-Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,NN,dataset,2,False,0.5678,0.7533,1.662,2.651,2.921,0.2575,2.952,within p10-p90,0.2455,-0.3378,1.0e+17-1.5e+18,
-Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,XGBoost,literature,2,False,0.6037,0.812,1.671,2.64,2.931,0.2575,2.952,within p10-p90,0.2373,-0.3289,1.0e+17-3.2e+18,
-Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,NN,literature,2,False,0.5498,0.7513,1.679,2.673,2.982,0.2575,2.952,within p10-p90,0.2462,-0.3213,1.0e+17-1.5e+18,
-Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,XGBoost,dataset,3,False,0.6669,0.8123,1.685,2.644,2.763,0.2575,2.952,outside predicted range,0.04,-1.315,6.8e+18-1.0e+19,
-Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,NN,dataset,3,False,0.5802,0.7543,1.662,2.635,2.895,0.2575,2.952,outside predicted range,0.07,-1.338,6.8e+18-1.0e+19,
-Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,XGBoost,literature,3,False,0.6156,0.8043,1.684,2.646,2.885,0.2575,2.952,outside predicted range,0.07611,-1.316,4.6e+18-1.0e+19,
-Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,NN,literature,3,False,0.5605,0.745,1.674,2.667,2.959,0.2575,2.952,outside predicted range,0.08333,-1.326,4.6e+18-1.0e+19,
-Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,XGBoost,dataset,3.342,False,0.6398,0.8133,1.659,2.579,2.71,0.2575,2.952,outside predicted range,0,-1.683,none in training range,
-Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,NN,dataset,3.342,False,0.6065,0.7732,1.665,2.651,2.868,0.2575,2.952,outside predicted range,0,-1.677,none in training range,
-Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,XGBoost,dataset,5.556,True,7.588,7.855,8.01,8.272,8.311,-6.077,10.07,consistent,,2.454,,1
-Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,NN,dataset,5.556,True,5.075,5.446,6.555,7.738,8.155,-6.077,10.07,consistent,,0.9985,,0.88
-Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,XGBoost,literature,3.342,False,0.6086,0.8358,1.689,2.635,2.879,0.2575,2.952,outside predicted range,0,-1.653,none in training range,
-Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,NN,literature,3.342,False,0.5759,0.7506,1.686,2.658,2.942,0.2575,2.952,outside predicted range,0,-1.657,none in training range,
-Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,XGBoost,literature,5.556,True,1.791,2.605,8.235,9.624,9.84,-6.077,10.07,consistent,,2.679,,0.8889
-Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,NN,literature,5.556,True,1.212,4.163,8.13,9.494,9.833,-6.077,10.07,consistent,,2.574,,0.8444
-Kim2018_InP_ZnSe,log10_on_off_ratio,XGBoost,dataset,2.623,False,0.6313,0.8018,1.68,2.654,2.833,0.2575,2.952,within p10-p90,0.2175,-0.9437,1.5e+18-1.0e+19,
-Kim2018_InP_ZnSe,log10_on_off_ratio,NN,dataset,2.623,False,0.5712,0.7455,1.701,2.594,2.894,0.2575,2.952,within full range,0.233,-0.9222,1.5e+18-1.0e+19,
-Kim2018_InP_ZnSe,log10_on_off_ratio,XGBoost,literature,2.623,False,0.5877,0.782,1.615,2.571,2.902,0.2575,2.952,within full range,0.2056,-1.008,1.0e+18-1.0e+19,
-Kim2018_InP_ZnSe,log10_on_off_ratio,NN,literature,2.623,False,0.5274,0.7376,1.658,2.651,2.942,0.2575,2.952,within p10-p90,0.2263,-0.9651,1.0e+18-1.0e+19,
+device_id,target,model,inputs,measured_log10,measured_is_lower_bound,pred_min,pred_p10,pred_median,pred_p90,pred_max,training_label_min,training_label_max,verdict,frac_grid_matching_x2,median_minus_measured,Nt_reproducing_measurement,Nt_extended_reproducing,frac_grid_consistent
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,XGBoost,dataset,3,False,0.6327,0.8054,1.663,2.62,2.76,0.2575,2.952,outside predicted range,0.036,-1.337,6.8e+18-1.0e+19,,
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,NN,dataset,3,False,0.5691,0.754,1.663,2.641,2.904,0.2575,2.952,outside predicted range,0.07,-1.337,6.8e+18-1.0e+19,,
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,Symbolic,dataset,3,False,0.4293,0.5921,1.449,2.379,2.574,0.2575,2.952,outside predicted range,0,-1.551,none in training range,2.2e+19-1.5e+20,
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,XGBoost,dataset,4.301,True,7.367,7.69,7.926,8.386,8.501,-6.077,10.07,consistent,,3.625,,,1
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,NN,dataset,4.301,True,4.657,5.209,6.47,7.727,8.219,-6.077,10.07,consistent,,2.169,,,1
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,Symbolic,dataset,4.301,True,6.606,6.606,6.606,6.606,6.606,-6.077,10.07,consistent,,2.305,,,1
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,XGBoost,literature,3,False,0.5778,0.8134,1.671,2.641,2.898,0.2575,2.952,outside predicted range,0.07422,-1.329,4.6e+18-1.0e+19,,
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,NN,literature,3,False,0.5517,0.7521,1.677,2.667,2.962,0.2575,2.952,outside predicted range,0.08489,-1.323,4.6e+18-1.0e+19,,
+Kannan2013_CdSe_ZnS,log10_on_off_ratio,Symbolic,literature,3,False,0.3491,0.6201,1.483,2.418,2.714,0.2575,2.952,outside predicted range,0.01333,-1.517,1.0e+19-1.0e+19,,
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,XGBoost,literature,4.301,True,1.782,2.485,8.281,9.666,9.935,-6.077,10.07,consistent,,3.98,,,0.8889
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,NN,literature,4.301,True,0.642,3.916,8.104,9.505,9.88,-6.077,10.07,consistent,,3.803,,,0.8842
+Kannan2013_CdSe_ZnS,log10_retention_tau_s,Symbolic,literature,4.301,True,4.405,4.405,7.469,9.038,9.038,-6.077,10.07,consistent,,3.168,,,1
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,XGBoost,dataset,2,False,0.6398,0.8059,1.656,2.615,2.762,0.2575,2.952,within p10-p90,0.245,-0.3437,1.0e+17-2.2e+18,,
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,NN,dataset,2,False,0.5678,0.7533,1.662,2.651,2.921,0.2575,2.952,within p10-p90,0.2455,-0.3378,1.0e+17-1.5e+18,,
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,Symbolic,dataset,2,False,0.4293,0.5921,1.449,2.379,2.574,0.2575,2.952,within p10-p90,0.28,-0.5515,3.2e+17-3.2e+18,,
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,XGBoost,literature,2,False,0.6037,0.812,1.671,2.64,2.931,0.2575,2.952,within p10-p90,0.2373,-0.3289,1.0e+17-3.2e+18,,
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,NN,literature,2,False,0.5498,0.7513,1.679,2.673,2.982,0.2575,2.952,within p10-p90,0.2462,-0.3213,1.0e+17-1.5e+18,,
+Kannan2016_CdSe_ZnS_TiTiOx,log10_on_off_ratio,Symbolic,literature,2,False,0.3491,0.6201,1.483,2.418,2.714,0.2575,2.952,within p10-p90,0.2444,-0.5175,2.2e+17-4.6e+18,,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,XGBoost,dataset,3,False,0.6669,0.8123,1.685,2.644,2.763,0.2575,2.952,outside predicted range,0.04,-1.315,6.8e+18-1.0e+19,,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,NN,dataset,3,False,0.5802,0.7543,1.662,2.635,2.895,0.2575,2.952,outside predicted range,0.07,-1.338,6.8e+18-1.0e+19,,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,Symbolic,dataset,3,False,0.4293,0.5921,1.449,2.379,2.574,0.2575,2.952,outside predicted range,0,-1.551,none in training range,2.2e+19-1.5e+20,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,XGBoost,literature,3,False,0.6156,0.8043,1.684,2.646,2.885,0.2575,2.952,outside predicted range,0.07611,-1.316,4.6e+18-1.0e+19,,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,NN,literature,3,False,0.5605,0.745,1.674,2.667,2.959,0.2575,2.952,outside predicted range,0.08333,-1.326,4.6e+18-1.0e+19,,
+Yagati2017_Azurin_CdSe_ZnS,log10_on_off_ratio,Symbolic,literature,3,False,0.3491,0.6201,1.483,2.418,2.714,0.2575,2.952,outside predicted range,0.01333,-1.517,1.0e+19-1.0e+19,,
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,XGBoost,dataset,3.342,False,0.6398,0.8133,1.659,2.579,2.71,0.2575,2.952,outside predicted range,0,-1.683,none in training range,,
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,NN,dataset,3.342,False,0.6065,0.7732,1.665,2.651,2.868,0.2575,2.952,outside predicted range,0,-1.677,none in training range,,
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,Symbolic,dataset,3.342,False,0.4293,0.5921,1.449,2.379,2.574,0.2575,2.952,outside predicted range,0,-1.894,none in training range,6.8e+19-4.6e+20,
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,XGBoost,dataset,5.556,True,7.588,7.855,8.01,8.272,8.311,-6.077,10.07,consistent,,2.454,,,1
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,NN,dataset,5.556,True,5.075,5.446,6.555,7.738,8.155,-6.077,10.07,consistent,,0.9985,,,0.88
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,Symbolic,dataset,5.556,True,6.606,6.606,6.606,6.606,6.606,-6.077,10.07,consistent,,1.05,,,1
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,XGBoost,literature,3.342,False,0.6086,0.8358,1.689,2.635,2.879,0.2575,2.952,outside predicted range,0,-1.653,none in training range,,
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,NN,literature,3.342,False,0.5759,0.7506,1.686,2.658,2.942,0.2575,2.952,outside predicted range,0,-1.657,none in training range,,
+Kim2021_CdSe_ZnS_multilevel,log10_on_off_ratio,Symbolic,literature,3.342,False,0.3491,0.6201,1.483,2.418,2.714,0.2575,2.952,outside predicted range,0,-1.86,none in training range,4.6e+19-6.8e+20,
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,XGBoost,literature,5.556,True,1.791,2.605,8.235,9.624,9.84,-6.077,10.07,consistent,,2.679,,,0.8889
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,NN,literature,5.556,True,1.212,4.163,8.13,9.494,9.833,-6.077,10.07,consistent,,2.574,,,0.8444
+Kim2021_CdSe_ZnS_multilevel,log10_retention_tau_s,Symbolic,literature,5.556,True,4.405,4.405,7.469,9.038,9.038,-6.077,10.07,consistent,,1.913,,,0.8889
+Kim2018_InP_ZnSe,log10_on_off_ratio,XGBoost,dataset,2.623,False,0.6313,0.8018,1.68,2.654,2.833,0.2575,2.952,within p10-p90,0.2175,-0.9437,1.5e+18-1.0e+19,,
+Kim2018_InP_ZnSe,log10_on_off_ratio,NN,dataset,2.623,False,0.5712,0.7455,1.701,2.594,2.894,0.2575,2.952,within full range,0.233,-0.9222,1.5e+18-1.0e+19,,
+Kim2018_InP_ZnSe,log10_on_off_ratio,Symbolic,dataset,2.623,False,0.501,0.6682,1.544,2.49,2.688,0.2575,2.952,within full range,0.16,-1.079,3.2e+18-1.0e+19,,
+Kim2018_InP_ZnSe,log10_on_off_ratio,XGBoost,literature,2.623,False,0.5877,0.782,1.615,2.571,2.902,0.2575,2.952,within full range,0.2056,-1.008,1.0e+18-1.0e+19,,
+Kim2018_InP_ZnSe,log10_on_off_ratio,NN,literature,2.623,False,0.5274,0.7376,1.658,2.651,2.942,0.2575,2.952,within p10-p90,0.2263,-0.9651,1.0e+18-1.0e+19,,
+Kim2018_InP_ZnSe,log10_on_off_ratio,Symbolic,literature,2.623,False,0.29,0.5419,1.39,2.313,2.596,0.2575,2.952,outside predicted range,0.08444,-1.234,4.6e+18-1.0e+19,,

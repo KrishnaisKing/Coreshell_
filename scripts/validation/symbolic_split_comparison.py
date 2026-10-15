@@ -33,34 +33,20 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
-import torch
-import xgboost as xgb
 from sklearn.metrics import r2_score, mean_absolute_error
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from split_utils import (load_dataset, candidate_split, random_row_split, leave_materials_out_split,
                          feature_range_split)
-from nn_model import (TORCH_THREADS, add_engineered_features, feature_columns, inner_split_and_scaler,
-                      train_tabular_resnet, predict)
-from symbolic_model import SparseSymbolicRegressor, CONSTRAINTS
-
-torch.set_num_threads(TORCH_THREADS)
+from model_fits import MODELS
 
 SEEDS = list(range(10))
 TARGETS = ["hysteresis_window_V", "log10_on_off_ratio", "log10_retention_tau_s"]
 OUT_CSV = "csv/symbolic_split_comparison.csv"
 
-df = add_engineered_features(load_dataset())
+df = load_dataset()
 df["max_abs_offset_eV"] = np.maximum(df["dE_LUMO_eV"].abs(), df["dE_HOMO_eV"].abs())
-
-# XGBoost: identical features/hyperparameters to split_strategy_comparison.py
-band_align_cols = [c for c in df.columns if c.startswith("band_align_")]
-xgb_features = [c for c in [
-    "dE_LUMO_eV", "dE_HOMO_eV", "shell_thick_nm", "core_radius_nm",
-    "Nt_cm3", "eps_shell", "Vmax_V", "lattice_mismatch_pct",
-] if c in df.columns] + band_align_cols
-nn_features = feature_columns(df)
 
 STRATEGIES = {
     "random (leaky)": (random_row_split, SEEDS),
@@ -71,33 +57,6 @@ STRATEGIES = {
     "thickness range (top 25%)": (partial(feature_range_split, column="shell_thick_nm"), [0]),
 }
 
-
-def fit_xgb(train_df, test_df, target, seed):
-    model = xgb.XGBRegressor(n_estimators=400, max_depth=6, learning_rate=0.03, subsample=0.8,
-                             colsample_bytree=0.7, random_state=seed)
-    model.fit(train_df[xgb_features], train_df[target])
-    return model.predict(test_df[xgb_features]), {}
-
-
-def fit_nn(train_df, test_df, target, seed):
-    inner_train_df, val_df, scaler = inner_split_and_scaler(train_df, nn_features, seed)
-    torch.manual_seed(seed)
-    model, best_epoch, _, _ = train_tabular_resnet(
-        scaler.transform(inner_train_df[nn_features].values), inner_train_df[target].values.astype(np.float32),
-        scaler.transform(val_df[nn_features].values), val_df[target].values.astype(np.float32),
-        shuffle_seed=seed)
-    return predict(model, scaler.transform(test_df[nn_features].values)), {"nn_best_epoch": best_epoch}
-
-
-def fit_sr(train_df, test_df, target, seed):
-    model = SparseSymbolicRegressor(constraints=CONSTRAINTS[target])
-    model.fit(train_df, train_df[target], groups=train_df["candidate_id"])
-    return model.predict(test_df), {"sr_n_terms": model.n_terms_, "sr_terms": " | ".join(model.terms()),
-                                    "sr_constraints_satisfied": model.constraints_satisfied()}
-
-
-MODELS = {"symbolic (ours)": fit_sr, "XGBoost": fit_xgb, "NN": fit_nn}
-
 rows = []
 t_start = time.perf_counter()
 for strat_name, (split_fn, seeds) in STRATEGIES.items():
@@ -107,6 +66,8 @@ for strat_name, (split_fn, seeds) in STRATEGIES.items():
             y = test_df[target].to_numpy()
             for model_name, fit in MODELS.items():
                 pred, extra = fit(train_df, test_df, target, seed)
+                extra = {k: v for k, v in extra.items() if k in ("nn_best_epoch", "sr_n_terms", "sr_terms",
+                                                                 "sr_constraints_satisfied")}
                 rows.append({"strategy": strat_name, "seed": seed, "target": target, "model": model_name,
                              "r2": r2_score(y, pred), "mae": mean_absolute_error(y, pred),
                              # share of test predictions above the highest training label. Not zero

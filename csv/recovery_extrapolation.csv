@@ -1,0 +1,28 @@
+strategy,target,model,r2_vs_clean,mae_vs_clean,sr_terms,n_train_rows,n_test_rows
+Nt range (top 25%),log10_retention_tau_s,symbolic (ours),0.9999668360955031,0.002975394787858196,typeI*wkb_min | exp(-typeI*wkb_max),918,306
+Nt range (top 25%),log10_retention_tau_s,XGBoost,0.9776208448865905,0.12580434744369065,,918,306
+Nt range (top 25%),log10_retention_tau_s,NN,-0.6426204045979187,1.3499643987307943,,918,306
+Nt range (top 25%),log10_on_off_ratio,symbolic (ours),0.9996447401920301,0.007631438179864606,(lgNt-wkb_max) | lgNt,918,306
+Nt range (top 25%),log10_on_off_ratio,XGBoost,0.6067157640816496,0.23969166767350314,,918,306
+Nt range (top 25%),log10_on_off_ratio,NN,-0.35749511361206987,0.358886304953029,,918,306
+Nt range (top 25%),hysteresis_window_V,symbolic (ours),-0.40682335160696437,0.010000463574344165,t*lgNt | t,918,306
+Nt range (top 25%),hysteresis_window_V,XGBoost,-0.31154975337456126,0.009440150821129749,,918,306
+Nt range (top 25%),hysteresis_window_V,NN,-43.78618040502636,0.06574213867925449,,918,306
+barrier range (top 25%),log10_retention_tau_s,symbolic (ours),0.9999573151759603,0.009689128137144296,typeI*wkb_min | typeI,920,304
+barrier range (top 25%),log10_retention_tau_s,XGBoost,0.9102934686403774,0.26735123192788757,,920,304
+barrier range (top 25%),log10_retention_tau_s,NN,0.10511285927621783,1.1143131250531222,,920,304
+barrier range (top 25%),log10_on_off_ratio,symbolic (ours),0.9999601126305467,0.003030353996259919,lgNt | (lgNt-wkb_max),920,304
+barrier range (top 25%),log10_on_off_ratio,XGBoost,0.5016800222400832,0.3312868075344464,,920,304
+barrier range (top 25%),log10_on_off_ratio,NN,-19.938134154556558,1.6762980018358373,,920,304
+barrier range (top 25%),hysteresis_window_V,symbolic (ours),0.5195308973466441,0.0035507467737728054,t*lgNt | t,920,304
+barrier range (top 25%),hysteresis_window_V,XGBoost,0.8689344429114245,0.001857319158497538,,920,304
+barrier range (top 25%),hysteresis_window_V,NN,-248.75660553805707,0.08961968115859449,,920,304
+thickness range (top 25%),log10_retention_tau_s,symbolic (ours),0.9998251843656111,0.017811164832469414,typeI*wkb_min | typeI,918,306
+thickness range (top 25%),log10_retention_tau_s,XGBoost,0.8955566851110341,0.37858946412676847,,918,306
+thickness range (top 25%),log10_retention_tau_s,NN,0.8815100511206534,0.44649262597418865,,918,306
+thickness range (top 25%),log10_on_off_ratio,symbolic (ours),0.9999784443568622,0.0022594731917200436,(lgNt-wkb_max) | lgNt,918,306
+thickness range (top 25%),log10_on_off_ratio,XGBoost,0.7212563896945691,0.22585743953064893,,918,306
+thickness range (top 25%),log10_on_off_ratio,NN,0.8864289935915743,0.15400620346096253,,918,306
+thickness range (top 25%),hysteresis_window_V,symbolic (ours),0.3647701341859546,0.006187947896189263,t*lgNt | t | eps*lgNt,918,306
+thickness range (top 25%),hysteresis_window_V,XGBoost,0.5364112774184338,0.004217157442073149,,918,306
+thickness range (top 25%),hysteresis_window_V,NN,-0.30216263616181704,0.011629208374317766,,918,306
