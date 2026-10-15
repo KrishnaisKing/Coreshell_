@@ -1,0 +1,15 @@
+kind,item,property,dataset_value,literature_low,literature_high,within_literature_range,dataset_note,literature_sources
+material,CdSe,band_gap,0.5589,1.75,1.9,False,mp-1070,"M1 (bulk 1.75), M2 (experimental 1.90)"
+material,CdSe,electron_affinity,0.2707,4.8,4.8,False,mp-1070; chi_is_estimated=True,M3 (conduction band edge at -4.8 eV vs vacuum)
+material,CdS,band_gap,1.1162,2.5,2.5,False,mp-672,"M1, M2"
+material,ZnS,band_gap,2.0206,3.52,3.84,False,mp-554820,"M4 (3.52), M1 (3.8), M2 (experimental 3.84)"
+material,ZnS,electron_affinity,-0.2492,3.4,4.1,False,mp-554820; chi_is_estimated=True,"M3 (conduction band edge at -3.4 eV vs vacuum), M4 (4.1)"
+material,ZnS,static_dielectric_constant,53.6306,8.0,10.0,False,mp-554820; source=penn_model_estimated,"M5 (cubic ZnS, 8.0), M4 (10)"
+material,ZnSe,band_gap,1.1687,2.83,2.83,False,mp-1190,M2 (experimental)
+material,InP,band_gap,0.4664,1.42,1.42,False,mp-20351,M2 (experimental)
+pair,CdSe/ZnS,dE_LUMO_eV,-0.5199,-1.4,-0.7,False,computed from the dataset's chi/Eg with its own convention,"M3, M4, M1"
+pair,CdSe/ZnS,dE_HOMO_eV,-0.9418,-1.07,-0.6,True,computed from the dataset's chi/Eg with its own convention,"M3, M4, M1"
+pair,CdSe/ZnS,band_alignment,"Type I (straddling, shell confines core)","Type I (straddling, shell confines core)","Type I (straddling, shell confines core)",True,the dataset's own classification rule applied to its own values,"M3, M4, M1"
+pair,InP/ZnSe,dE_LUMO_eV,0.5945,-0.8,-0.4,False,computed from the dataset's chi/Eg with its own convention,"M6, M7"
+pair,InP/ZnSe,dE_HOMO_eV,-1.2968,-1.0,-0.57,False,computed from the dataset's chi/Eg with its own convention,"M6, M7"
+pair,InP/ZnSe,band_alignment,Type III (broken gap),"Type I (straddling, shell confines core)","Type I (straddling, shell confines core)",False,the dataset's own classification rule applied to its own values,"M6, M7"

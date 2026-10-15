@@ -14,7 +14,10 @@ args) — paths are relative to the repo root regardless of which subfolder the 
 **scripts must always be invoked from the repo root** (e.g. `python scripts/training/nn.py`, never `cd
 scripts/training && python nn.py`). Layout: all `.py` files live under `scripts/`, organized by purpose
 (see "Script organization" below); model artifacts (`xgb_model_*.json`, `nn_model_*.pt`) live in the repo
-root; all CSVs live in `csv/`; all figures in `plots/`.
+root; all CSVs live in `csv/`; all figures in `plots/`. Two exceptions keep their data, outputs and
+write-ups together in their own folder (their scripts still live under `scripts/`): the Tier 3 literature
+benchmark in `literature_analysis/` (script in `scripts/literature/`), and the Option B curated dataset in
+`curated_dataset/` (script in `scripts/dataset/`).
 
 ### Script organization
 
@@ -25,9 +28,11 @@ scripts/
 ├── pipeline/            # Prepare_real_candidates.py, Latticmatch.py
 ├── training/            # kmeans_xgboost_train.py, nn.py, nn_permutation_importance.py
 ├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py
-└── validation/          # split_strategy_comparison.py, retention_extrapolation_check.py,
-                         # repeated_split_evaluation.py, physics_sanity_checks.py,
-                         # multicollinearity_check.py, uncertainty_quantification.py
+├── validation/          # split_strategy_comparison.py, retention_extrapolation_check.py,
+│                        # repeated_split_evaluation.py, physics_sanity_checks.py,
+│                        # multicollinearity_check.py, uncertainty_quantification.py
+├── literature/          # model_vs_experiment.py (Tier 3; reads and writes literature_analysis/)
+└── dataset/             # build_curated_dataset.py (Option B; reads and writes curated_dataset/)
 ```
 
 `split_utils.py`/`nn_model.py` stay directly under `scripts/` rather than in their own subfolder because
@@ -80,6 +85,8 @@ python scripts/validation/repeated_split_evaluation.py     # re-evaluates the fi
 python scripts/validation/physics_sanity_checks.py         # monotonicity checks (hysteresis vs Nt/barrier height, on-off/retention vs shell thickness) -> csv/physics_sanity_checks.csv, plots/physics_sanity_checks.png
 python scripts/validation/multicollinearity_check.py       # VIF across the full feature set -> csv/multicollinearity_check.csv, plots/multicollinearity_check.png
 python scripts/validation/uncertainty_quantification.py    # 80% prediction intervals via XGBoost quantile regression -> csv/uncertainty_quantification.csv, plots/uncertainty_quantification.png
+python scripts/literature/model_vs_experiment.py           # Tier 3 benchmark vs measured devices -> literature_analysis/{provenance_check,benchmark_inputs,benchmark_results}.csv, model_vs_experiment.png
+python scripts/dataset/build_curated_dataset.py            # Option B: cited material properties -> curated_dataset/candidates.csv (inputs only, labels empty)
 ```
 
 There is no build step, linter, or test command in this repo.
@@ -229,12 +236,47 @@ Electron Device Letters for a device-physics framing; Digital Discovery or npj C
 an ML-for-materials framing; J. Mater. Chem. C or Nanoscale for a materials-chemistry framing). Its
 "essential" figure set doesn't exist yet in `plot*.py`: (1) a parity plot on a **grouped or
 leave-one-material-out** held-out set specifically (not the current candidate-pair split framed as such),
-(2) a SHAP/feature-importance plot, (3) a model-vs-real-experimental-data benchmark. That third figure
-needs measured device data; only a small, partial seed exists so far (`experimental_benchmark/`, see Tier 3).
-All training data traces back to the faculty-provided `synthetic_rs_dataset_fixed__1_.csv`.
+(2) a SHAP/feature-importance plot, (3) a model-vs-real-experimental-data benchmark. A first version of
+that third figure now exists (`literature_analysis/model_vs_experiment.png`, see Tier 3), built on a small
+literature set. All training data traces back to the faculty-provided `synthetic_rs_dataset_fixed__1_.csv`.
 
-**`experimental_benchmark/` is real literature data, not training data** — kept out of `csv/` deliberately
-so no script picks it up by accident. No script reads it yet.
+**`literature_analysis/` holds real literature data, never training data** — kept out of `csv/`
+deliberately so no training script picks it up. Only `scripts/literature/model_vs_experiment.py` reads it.
+Its curated inputs (`measured_devices.csv`, `literature_material_constants.csv`,
+`literature_pair_offsets.csv`) are hand-maintained with every value cited in `SOURCES.md`; the other CSVs
+and the PNG there are script outputs. `BENCHMARK.md` is the written report — if the script's results change,
+its numbers must be updated to match (they were checked against `benchmark_results.csv` when written).
+
+**`curated_dataset/` is Option B: a replacement candidate set built from measured, cited material
+properties, with no labels yet.** It is not wired into training, and no script in `csv/`'s pipeline reads it.
+`material_properties.csv` is hand-maintained, one row per material × property × quality tier, with its
+source. Two tiers are used (handbook wins where both exist):
+- `handbook`: the Ioffe NSM archive, re-checked against saved pages. AlAs is Ioffe's AlGaAs formulas at x=1.
+- `literature_measured`: measured values from full-text papers.
+  - Hinuma et al. PRB 90, 155405 (2014): Table I gaps/lattice constants. Its Fig. 2 measured IP/EA bars
+    were extracted exactly from the PDF's vector data; IP−EA reproduces Table I to 0.01 eV, and the III-V
+    EAs match Ioffe within ~0.1 eV.
+  - II-VI static dielectric constants: Lyddane-Sachs-Teller from measured ε∞/phonons (Gopal 2015), plus
+    wurtzite CdSe/CdS measurements.
+
+`secondary`/`conflicting` rows are recorded but ignored. `build_curated_dataset.py` uses 19 materials:
+Si, Ge, GaAs, GaP, GaSb, InP, InAs, InSb, GaN, AlN, BN, AlAs, ZnS, ZnSe, ZnTe, CdSe, CdTe, AlSb and ZnO.
+- A material needs Eg, χ and a; it needs ε to be a shell, so AlSb and ZnO are cores only.
+- 306 ordered pairs; the `pair_quality` column marks the 132 pairs built from handbook values only.
+- It computes `dEc_eV`/`dEv_eV`/`band_alignment` with the raw dataset's rule, re-checking that rule
+  against all 8000 raw labels first and stopping if it drifts.
+- It computes `lattice_mismatch_pct` (cubic-equivalent √2·a for wurtzite) and LHS-samples 4 device rows per
+  pair over the raw dataset's ranges, giving 1,224 rows in the raw dataset's column layout.
+
+It gets the textbook pairs right: CdSe/ZnS, InP/ZnSe (which the faculty dataset calls Type III) and
+CdSe/ZnSe are type I; CdTe/CdSe and ZnTe/ZnSe are type II; InAs/GaSb is a broken gap. **Label columns are
+empty** (`labels_status = pending`): no generator for them exists here, and choosing one is an open decision.
+
+Known gaps, documented in `curated_dataset/SOURCES.md`:
+- CdS is excluded: its two measured IPs conflict by 1.2 eV.
+- PbS/PbSe lack data.
+- The electron-affinity (Anderson) rule misclassifies GaN/AlN, a known type-I pair, as type II, because
+  AlN's χ = 0.6 eV is a surface value.
 
 ## Fix/validation roadmap (tiered by priority)
 
@@ -262,6 +304,17 @@ Update this checklist's status markers as work lands — don't let it go stale. 
   treating |offset| as a barrier regardless of alignment type — a different mechanism from the
   role-swap hypothesis above, and one that would produce the inverted ordering by itself. Worth asking
   faculty specifically how hysteresis was computed from the offsets.
+  **Third and strongest piece of evidence** (Tier 3, `literature_analysis/provenance_check.csv`): the
+  dataset's material values are not physical. Every electron affinity checked sits near 0 eV (CdSe 0.27,
+  ZnS **−0.25**) where literature puts them at 3.4–4.8 eV; band gaps are 2–3× too small (consistent with
+  Materials Project's DFT values); ZnS's dielectric constant is 53.6 vs 8–10. Applying the dataset's own
+  band-alignment rule to its own values classifies **InP/ZnSe — a well-established type-I pair — as type
+  III**. So the AI-assisted extraction recorded something other than real electron affinities, and
+  `band_alignment` labels can't be trusted per-pair. This doesn't on its own prove the hysteresis inversion's
+  mechanism, but it makes "the material inputs are wrong" the leading explanation. The dataset's own rule
+  (verified to reproduce all 8000 labels): both offsets negative → Type I (shell confines core), both positive
+  → Type I (core confines shell), mixed signs → Type II, unless one conduction band lies below the other's
+  valence band → Type III.
 
 **Tier 1 — core validation gaps (needed before any accuracy claim is credible; on `core-validation-gaps`,
 not yet merged to `main`):**
@@ -357,15 +410,26 @@ not yet merged to `main`):**
   `leave_materials_out_split()` first** — the same distinction that matters for R² almost certainly matters
   here too, and hasn't been checked yet.
 
-**Tier 3 — blocked on external input:**
-- [~] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — **partial seed only.**
-  `experimental_benchmark/real_measured_data.csv` has 4 measured data points from 4 cited papers (sources
-  and caveats in `experimental_benchmark/SOURCES.md`), found in one web-search pass, not a systematic
-  review. Only 2 rows (CdSe/ZnS, 2-terminal) match this project's device class; the other 2 are 3-terminal
-  floating-gate transistors whose gate-voltage "memory window" (77–140 V) is not the same quantity as
-  `hysteresis_window_V` (~0–1.1 V here). No row reports all three targets. Usable today only for a limited
-  `on_off_ratio` sanity comparison against the CdSe/ZnS rows — not enough for the actual benchmark figure,
-  which still needs a deeper search (full texts, CdSe/ZnS-family papers specifically).
+**Tier 3 — model vs. real experiment:**
+- [~] Model-vs-real-experimental-data benchmark (the doc's essential figure #3) — **first version done,
+  small evidence base.** `scripts/literature/model_vs_experiment.py` benchmarks both models against 5
+  measured 2-terminal core/shell QD memories (4 CdSe/ZnS, 1 InP/ZnSe; 3 more devices recorded but not
+  modellable). Full write-up in `literature_analysis/BENCHMARK.md`. Because no paper reports trap density
+  (the dominant on/off driver), every unreported input is swept and predictions are reported as bands, run
+  with both the dataset's own material values and literature values. Findings:
+  - **On/off: the training data's ceiling is the limit.** The highest on/off in the training data is ~896.
+    Devices at 100 and 420 are reproduced; three reporting ~1,000–2,200 are at or above the ceiling, and
+    Kim 2021 (2,200) can't be reproduced by any input. Predicted bands are nearly identical across devices,
+    since without a trap density the model can't tell them apart.
+  - **Retention: consistent, weak test.** Papers only give lower bounds (≥2×10⁴ s, ≥3.6×10⁵ s); all model
+    medians (~10⁶–10⁸ s) clear them. Retention predictions swing ~7 orders of magnitude between dataset and
+    literature inputs, because retention runs on the band offsets the dataset gets wrong.
+  - **Hysteresis: not benchmarked.** Papers give bipolar set/reset spans (3.6–7 V for these devices), a
+    different quantity from `hysteresis_window_V`, and above the training data's maximum of 3.21 V.
+  - **Provenance:** see Tier 0 — the dataset's electron affinities are unphysical and it misclassifies
+    InP/ZnSe as type III.
+  Still open: more devices (two of five have full texts read), ideally papers that report or bound trap
+  density; full-text checks of the literature constants, several of which came from search summaries.
 
 **Tier 4 — doc's optional/"if space allows" items (not started):**
 - [ ] Residual-by-input-region plot (flag where error concentrates, e.g. thin shells, high trap density).

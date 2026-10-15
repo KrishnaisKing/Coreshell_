@@ -1,0 +1,99 @@
+material,structure,property,value,value_low,value_high,unit,temperature,quality,source_key,cited_reference,notes
+Si,diamond,band_gap,1.12,,,eV,300 K,handbook,IOFFE,,
+Si,diamond,electron_affinity,4.05,,,eV,300 K,handbook,IOFFE,,
+Si,diamond,static_dielectric_constant,11.7,,,-,300 K,handbook,IOFFE,,
+Si,diamond,lattice_constant_a,5.431,,,Angstrom,300 K,handbook,IOFFE,,
+Ge,diamond,band_gap,0.661,,,eV,300 K,handbook,IOFFE,,
+Ge,diamond,electron_affinity,4.0,,,eV,300 K,handbook,IOFFE,,
+Ge,diamond,static_dielectric_constant,16.2,,,-,300 K,handbook,IOFFE,,
+Ge,diamond,lattice_constant_a,5.658,,,Angstrom,300 K,handbook,IOFFE,,
+GaAs,zinc blende,band_gap,1.424,,,eV,300 K,handbook,IOFFE,,
+GaAs,zinc blende,electron_affinity,4.07,,,eV,300 K,handbook,IOFFE,,
+GaAs,zinc blende,static_dielectric_constant,12.9,,,-,300 K,handbook,IOFFE,,
+GaAs,zinc blende,lattice_constant_a,5.65325,,,Angstrom,300 K,handbook,IOFFE,,
+GaP,zinc blende,band_gap,2.26,,,eV,300 K,handbook,IOFFE,,
+GaP,zinc blende,electron_affinity,3.8,,,eV,300 K,handbook,IOFFE,,
+GaP,zinc blende,static_dielectric_constant,11.1,,,-,300 K,handbook,IOFFE,,
+GaP,zinc blende,lattice_constant_a,5.4505,,,Angstrom,300 K,handbook,IOFFE,,
+GaSb,zinc blende,band_gap,0.726,,,eV,300 K,handbook,IOFFE,,
+GaSb,zinc blende,electron_affinity,4.06,,,eV,300 K,handbook,IOFFE,,
+GaSb,zinc blende,static_dielectric_constant,15.7,,,-,300 K,handbook,IOFFE,,
+GaSb,zinc blende,lattice_constant_a,6.09593,,,Angstrom,300 K,handbook,IOFFE,,
+InP,zinc blende,band_gap,1.344,,,eV,300 K,handbook,IOFFE,,
+InP,zinc blende,electron_affinity,4.38,,,eV,300 K,handbook,IOFFE,,
+InP,zinc blende,static_dielectric_constant,12.5,,,-,300 K,handbook,IOFFE,,
+InP,zinc blende,lattice_constant_a,5.8687,,,Angstrom,300 K,handbook,IOFFE,,
+InAs,zinc blende,band_gap,0.354,,,eV,300 K,handbook,IOFFE,,
+InAs,zinc blende,electron_affinity,4.9,,,eV,300 K,handbook,IOFFE,,
+InAs,zinc blende,static_dielectric_constant,15.15,,,-,300 K,handbook,IOFFE,,
+InAs,zinc blende,lattice_constant_a,6.0583,,,Angstrom,300 K,handbook,IOFFE,,
+InSb,zinc blende,band_gap,0.17,,,eV,300 K,handbook,IOFFE,,
+InSb,zinc blende,electron_affinity,4.59,,,eV,300 K,handbook,IOFFE,,
+InSb,zinc blende,static_dielectric_constant,16.8,,,-,300 K,handbook,IOFFE,,
+InSb,zinc blende,lattice_constant_a,6.479,,,Angstrom,300 K,handbook,IOFFE,,
+GaN,wurtzite,band_gap,3.39,,,eV,300 K,handbook,IOFFE,Chow & Ghezzo (1996),The same Ioffe page also lists 3.44 eV at 300 K (Madelung 1991).
+GaN,wurtzite,electron_affinity,4.1,,,eV,300 K,handbook,IOFFE,Bougrov et al. (2001),
+GaN,wurtzite,static_dielectric_constant,8.9,,,-,300 K,handbook,IOFFE,Bougrov et al. (2001),
+GaN,wurtzite,lattice_constant_a,3.189,3.160,3.190,Angstrom,300 K,handbook,IOFFE,Qian et al. (1996),Hexagonal a. Ioffe also lists a 3.160-3.190 A range (Lagerstedt et al. 1979); the 300 K point value is used.
+AlN,wurtzite,band_gap,6.026,,,eV,300 K,handbook,IOFFE,Guo & Yoshida (1994),
+AlN,wurtzite,electron_affinity,0.6,,,eV,300 K,handbook,IOFFE,Goldberg (2001),
+AlN,wurtzite,static_dielectric_constant,9.14,,,-,300 K,handbook,IOFFE,Collins et al. (1967),300 K; reflectivity.
+AlN,wurtzite,lattice_constant_a,3.11,,,Angstrom,300 K,handbook,IOFFE,Iwama et al. (1971),X-ray diffraction on ultrafine powder. Hexagonal a.
+BN,zinc blende,band_gap,6.25,6.1,6.4,eV,300 K,handbook,IOFFE,Rumyantsev et al. (2001),Cubic BN. Ioffe gives 6.1-6.4 eV; midpoint used.
+BN,zinc blende,electron_affinity,4.5,,,eV,300 K,handbook,IOFFE,Rumyantsev et al. (2001),Cubic BN.
+BN,zinc blende,static_dielectric_constant,7.1,,,-,300 K,handbook,IOFFE,Gielisse et al. (1967),Cubic BN; infrared reflectivity.
+BN,zinc blende,lattice_constant_a,3.6157,,,Angstrom,300 K,handbook,IOFFE,Sohno et al. (1974),Cubic BN; X-ray.
+Diamond,diamond,band_gap,5.53,5.46,5.6,eV,300 K,handbook,IOFFE,,Ioffe gives 5.46-5.6 eV; midpoint used.
+Diamond,diamond,static_dielectric_constant,5.7,,,-,300 K,handbook,IOFFE,,Ioffe: dielectric constant at 1e2-1e4 Hz. No electron affinity on Ioffe (surface-termination dependent) so Diamond is not used for pairs.
+Diamond,diamond,lattice_constant_a,3.567,,,Angstrom,300 K,handbook,IOFFE,,
+SiC,3C (zinc blende),band_gap,2.36,,,eV,300 K,handbook,IOFFE,,3C polytype. Ioffe also lists an indirect gap of 2.416 eV at 2 K (Bimberg et al. 1981).
+SiC,3C (zinc blende),static_dielectric_constant,9.72,,,-,300 K,handbook,IOFFE,,3C polytype.
+SiC,3C (zinc blende),lattice_constant_a,4.3596,,,Angstrom,300 K,handbook,IOFFE,,3C polytype. No electron affinity on Ioffe so SiC is not used for pairs.
+CdSe,wurtzite,band_gap,1.74,,,eV,room temperature,secondary,WIKI_CdSe,"Ninomiya & Adachi, J. Appl. Phys. 78, 4681 (1995), doi:10.1063/1.359815","Value and reference from the Wikipedia infobox; primary reference not read. Same value for hexagonal and sphalerite."
+CdSe,wurtzite,electron_affinity,4.68,4.56,4.8,eV,,secondary,"PARAJULI2023; M3",,"Sources disagree: 4.56 eV is a solar-cell simulation input (Parajuli 2023 Table 1, citing a 2017 conference paper); 4.8 eV is read off a band-edge diagram (M3). Superseded by the literature_measured row (HINUMA2014)."
+ZnSe,zinc blende,band_gap,2.83,,,eV,experimental,secondary,VARLEY2024,Varley et al. ref. 38,Experimental gap from Varley et al. Table II (the table is clear; offsets from that table were not used).
+ZnSe,zinc blende,electron_affinity,4.09,,,eV,,secondary,PARAJULI2023,Parajuli 2023 ref. [75] (entry not visible),Solar-cell simulation input. Superseded by the literature_measured row (HINUMA2014).
+ZnSe,zinc blende,static_dielectric_constant,9.2,,,-,,secondary,PARAJULI2023,Parajuli 2023 ref. [75] (entry not visible),Solar-cell simulation input.
+ZnS,zinc blende,band_gap,3.84,,,eV,experimental,secondary,VARLEY2024,Varley et al. ref. 38,
+ZnS,zinc blende,electron_affinity,3.75,3.4,4.1,eV,,secondary,"M3; M4",,"Sources disagree: 3.4 eV from a band-edge diagram (M3), 4.1 eV from a simulation-parameter table (M4). Superseded by the literature_measured row (HINUMA2014)."
+ZnS,zinc blende,static_dielectric_constant,8.0,,,-,,secondary,M5,,"Cubic ZnS, from a search summary of a Landolt-Bornstein data sheet."
+ZnTe,zinc blende,band_gap,2.26,,,eV,,secondary,WIKI_ZnTe,,Value with a reference in the Wikipedia infobox; reference not read.
+ZnTe,zinc blende,electron_affinity,3.53,,,eV,,secondary,SWANK1967,"Swank, Phys. Rev. 153, 844 (1967)",Value seen only in a search summary of this paper; full text paywalled. Agrees with the literature_measured value 3.51 eV (HINUMA2014).
+ZnTe,zinc blende,lattice_constant_a,6.101,,,Angstrom,,secondary,WIKI_ZnTe,,Value with a reference in the Wikipedia infobox; reference not read.
+CdS,wurtzite,band_gap,2.50,,,eV,experimental,secondary,VARLEY2024,Varley et al. ref. 38,No electron affinity found yet.
+PbS,rock salt,band_gap,0.41,,,eV,,secondary,PB_SEARCH,,Bulk gap from a search summary; no electron affinity found yet.
+PbSe,rock salt,band_gap,0.28,,,eV,,secondary,PB_SEARCH,,Bulk gap from a search summary; no electron affinity found yet.
+AlAs,zinc blende,band_gap,2.168,,,eV,300 K,handbook,IOFFE_AlGaAs,,"Ioffe AlxGa1-xAs composition formula evaluated at x=1: Eg = 1.9+0.125x+0.143x^2 (x>0.45). Hinuma 2014 Table I lists AlAs Eg 2.16 eV, a 5.661 A."
+AlAs,zinc blende,electron_affinity,3.5,,,eV,300 K,handbook,IOFFE_AlGaAs,,"Ioffe AlxGa1-xAs composition formula evaluated at x=1: chi = 3.64-0.14x (x>0.45). Hinuma 2014 Table I lists AlAs Eg 2.16 eV, a 5.661 A."
+AlAs,zinc blende,static_dielectric_constant,10.06,,,-,300 K,handbook,IOFFE_AlGaAs,,"Ioffe AlxGa1-xAs composition formula evaluated at x=1: eps = 12.90-2.84x. Hinuma 2014 Table I lists AlAs Eg 2.16 eV, a 5.661 A."
+AlAs,zinc blende,lattice_constant_a,5.6611,,,Angstrom,300 K,handbook,IOFFE_AlGaAs,,"Ioffe AlxGa1-xAs composition formula evaluated at x=1: a = 5.6533+0.0078x. Hinuma 2014 Table I lists AlAs Eg 2.16 eV, a 5.661 A."
+ZnS,zinc blende,band_gap,3.6,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnS,zinc blende,lattice_constant_a,5.409,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnS,zinc blende,electron_affinity,3.9,,,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 7.5 eV minus Table I gap 3.6 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV)."
+ZnSe,zinc blende,band_gap,2.7,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnSe,zinc blende,lattice_constant_a,5.669,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnSe,zinc blende,electron_affinity,4.12,,,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 6.82 eV minus Table I gap 2.7 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV)."
+ZnTe,zinc blende,band_gap,2.25,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnTe,zinc blende,lattice_constant_a,6.103,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnTe,zinc blende,electron_affinity,3.51,,,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 5.76 eV minus Table I gap 2.25 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV)."
+CdSe,zinc blende,band_gap,1.73,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+CdSe,zinc blende,lattice_constant_a,6.077,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",Zinc-blende lattice constant.
+CdSe,zinc blende,electron_affinity,4.89,,,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 6.62 eV minus Table I gap 1.73 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV)."
+CdTe,zinc blende,band_gap,1.45,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+CdTe,zinc blende,lattice_constant_a,6.481,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+CdTe,zinc blende,electron_affinity,4.34,4.33,4.35,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 5.78/5.8 eV minus Table I gap 1.45 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV). Two measurements; mean used."
+CdS,zinc blende,band_gap,2.42,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+CdS,zinc blende,lattice_constant_a,5.818,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",Zinc-blende lattice constant.
+CdS,zinc blende,electron_affinity,4.26,3.68,4.84,eV,,conflicting,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)",Two measured IPs (6.10 and 7.26 eV) give EA 3.68 or 4.84 eV; Hinuma notes the spread for CdS may come from adsorbates. Not used until resolved.
+AlSb,zinc blende,band_gap,1.65,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+AlSb,zinc blende,lattice_constant_a,6.136,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+AlSb,zinc blende,electron_affinity,3.57,,,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)","EA = measured IP 5.22 eV minus Table I gap 1.65 eV, as defined in Hinuma 2014. Read exactly from the figure's vector data (IP-EA reproduces Table I gap to 0.01 eV)."
+ZnO,wurtzite,band_gap,3.4,,,eV,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",
+ZnO,wurtzite,lattice_constant_a,3.25,,,Angstrom,,literature_measured,HINUMA2014,"Table I (experimental; compiled from Grueneis et al. PRL 112, 096401 (2014) and refs therein)",Hexagonal a.
+ZnO,wurtzite,electron_affinity,4.51,4.42,4.6,eV,,literature_measured,HINUMA2014,"Fig. 2 experimental bars (IPs compiled by Moench, Semiconductor Surfaces and Interfaces, Springer 2001)",Mean of the two nonpolar surfaces: (11-20) IP 7.82 -> EA 4.42; (10-10) IP 8.00 -> EA 4.60. EA = IP minus Table I gap 3.4 eV.
+ZnS,zinc blende,static_dielectric_constant,8.15,,,-,,literature_measured,GOPAL2015,derived via Lyddane-Sachs-Teller from measured values,"Lyddane-Sachs-Teller: eps0 = eps_inf*(w_LO/w_TO)^2 with measured eps_inf=5.13 and Gamma-point w_TO=273, w_LO=344 cm-1 (Gopal 2015 Tables VII-VIII, experimental columns; primary data Hennion 1971, Vagelatos 1974, Rowe 1974)."
+ZnSe,zinc blende,static_dielectric_constant,8.11,,9.2,-,,literature_measured,GOPAL2015,derived via Lyddane-Sachs-Teller from measured values,"Lyddane-Sachs-Teller: eps0 = eps_inf*(w_LO/w_TO)^2 with measured eps_inf=5.7 and Gamma-point w_TO=213, w_LO=254 cm-1 (Gopal 2015 Tables VII-VIII, experimental columns; primary data Hennion 1971, Vagelatos 1974, Rowe 1974). Lower than the commonly quoted ~9.1 (e.g. PARAJULI2023 9.2); range in value_high."
+ZnTe,zinc blende,static_dielectric_constant,9.78,,,-,,literature_measured,GOPAL2015,derived via Lyddane-Sachs-Teller from measured values,"Lyddane-Sachs-Teller: eps0 = eps_inf*(w_LO/w_TO)^2 with measured eps_inf=7.2 and Gamma-point w_TO=175, w_LO=204 cm-1 (Gopal 2015 Tables VII-VIII, experimental columns; primary data Hennion 1971, Vagelatos 1974, Rowe 1974)."
+CdTe,zinc blende,static_dielectric_constant,10.4,,,-,,literature_measured,GOPAL2015,derived via Lyddane-Sachs-Teller from measured values,"Lyddane-Sachs-Teller: eps0 = eps_inf*(w_LO/w_TO)^2 with measured eps_inf=7.1 and Gamma-point w_TO=138, w_LO=167 cm-1 (Gopal 2015 Tables VII-VIII, experimental columns; primary data Hennion 1971, Vagelatos 1974, Rowe 1974)."
+CdSe,zinc blende,static_dielectric_constant,9.58,9.29,10.16,-,,literature_measured,PLANELLES_SI,"Geick, Perry & Mitra, J. Appl. Phys. 37, 1994 (1966)","Wurtzite eps_perp 9.29, eps_par 10.16 (supplementary table, citing the primary measurement via Landolt-Bornstein III/41B); orientational average (2*perp+par)/3 used."
+CdS,zinc blende,static_dielectric_constant,8.43,8.28,8.73,-,,literature_measured,PLANELLES_SI,"Ninomiya & Adachi, J. Appl. Phys. 78, 1183 (1995)","Wurtzite eps_perp 8.28, eps_par 8.73 (supplementary table, citing the primary measurement via Landolt-Bornstein III/41B); orientational average (2*perp+par)/3 used."

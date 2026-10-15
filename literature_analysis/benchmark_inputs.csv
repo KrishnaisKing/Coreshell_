@@ -1,0 +1,11 @@
+device_id,inputs,grid_points,band_alignment,dE_LUMO_eV,dE_HOMO_eV,eps_shell,core_radius_nm,shell_thick_nm,Vmax_V,Nt_cm3,outside_training_range,note
+Kannan2013_CdSe_ZnS,dataset,500,"Type I (straddling, shell confines core)",-0.52,-0.942,53.6,1.6-2.3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; Vmax_V=1..5,
+Kannan2013_CdSe_ZnS,literature,9000,"Type I (straddling, shell confines core)",-1.4/-1.05/-0.7,-1.07/-0.835/-0.6,8/10,1.6-2.3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; Vmax_V=1..5,
+Kannan2016_CdSe_ZnS_TiTiOx,dataset,2000,"Type I (straddling, shell confines core)",-0.52,-0.942,53.6,1.5-3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..3; Vmax_V=1..5,
+Kannan2016_CdSe_ZnS_TiTiOx,literature,36000,"Type I (straddling, shell confines core)",-1.4/-1.05/-0.7,-1.07/-0.835/-0.6,8/10,1.5-3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..3; Vmax_V=1..5,
+Yagati2017_Azurin_CdSe_ZnS,dataset,100,"Type I (straddling, shell confines core)",-0.52,-0.942,53.6,1.5-2.2,0.3-1,3,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..2.2,
+Yagati2017_Azurin_CdSe_ZnS,literature,1800,"Type I (straddling, shell confines core)",-1.4/-1.05/-0.7,-1.07/-0.835/-0.6,8/10,1.5-2.2,0.3-1,3,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..2.2,
+Kim2021_CdSe_ZnS_multilevel,dataset,100,"Type I (straddling, shell confines core)",-0.52,-0.942,53.6,2-2.7,0.3-1,5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; Vmax_V=5..5,
+Kim2021_CdSe_ZnS_multilevel,literature,1800,"Type I (straddling, shell confines core)",-1.4/-1.05/-0.7,-1.07/-0.835/-0.6,8/10,2-2.7,0.3-1,5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; Vmax_V=5..5,
+Kim2018_InP_ZnSe,dataset,2000,Type III (broken gap),0.595,-1.3,10.7,1.5-3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..3; Vmax_V=1..5,
+Kim2018_InP_ZnSe,literature,18000,"Type I (straddling, shell confines core)",-0.8/-0.6/-0.4,-1/-0.785/-0.57,10.7,1.5-3,0.3-1,1/2/3/4/5,1.00e+15-9.99e+18 (25 log steps),shell_thick_nm=0.3..1; core_radius_nm=1.5..3; Vmax_V=1..5,no cited literature value; dataset value used

@@ -1,0 +1,9 @@
+material,property,literature_low,literature_high,unit,sources
+CdSe,band_gap,1.75,1.90,eV,"M1 (bulk 1.75), M2 (experimental 1.90)"
+CdSe,electron_affinity,4.8,4.8,eV,M3 (conduction band edge at -4.8 eV vs vacuum)
+CdS,band_gap,2.50,2.50,eV,"M1, M2"
+ZnS,band_gap,3.52,3.84,eV,"M4 (3.52), M1 (3.8), M2 (experimental 3.84)"
+ZnS,electron_affinity,3.4,4.1,eV,"M3 (conduction band edge at -3.4 eV vs vacuum), M4 (4.1)"
+ZnS,static_dielectric_constant,8.0,10.0,-,"M5 (cubic ZnS, 8.0), M4 (10)"
+ZnSe,band_gap,2.83,2.83,eV,M2 (experimental)
+InP,band_gap,1.42,1.42,eV,M2 (experimental)
