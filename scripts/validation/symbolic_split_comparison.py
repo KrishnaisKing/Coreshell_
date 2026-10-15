@@ -24,7 +24,8 @@ test of the extrapolation claim. Their R^2 is computed on a range-restricted tes
 set (lower variance), so read MAE alongside it.
 
 Writes csv/symbolic_split_comparison.csv (one row per fit),
-csv/symbolic_split_comparison_summary.csv and plots/symbolic_split_comparison.png.
+csv/symbolic_split_comparison_summary.csv; the figure is drawn separately by
+scripts/plotting/plot_symbolic_split_comparison.py so restyling it doesn't need this ~40-min rerun.
 """
 
 import time
@@ -32,7 +33,6 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import torch
 import xgboost as xgb
 from sklearn.metrics import r2_score, mean_absolute_error
@@ -130,42 +130,5 @@ summary = (results.groupby(["strategy", "target", "model"], sort=False)
 summary.to_csv("csv/symbolic_split_comparison_summary.csv", index=False)
 print("\n" + summary.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
 
-# ---------------------------------------------------------------- figure
-# Validated categorical palette (dataviz skill, light mode): slot 1 blue, 2 orange, 3 aqua.
-COLORS = {"symbolic (ours)": "#2a78d6", "XGBoost": "#eb6834", "NN": "#1baf7a"}
-INK, MUTED, GRID = "#21201c", "#6b6a64", "#e4e3de"
-plt.rcParams.update({"font.family": "DejaVu Sans", "axes.edgecolor": MUTED, "axes.labelcolor": INK,
-                     "xtick.color": MUTED, "ytick.color": MUTED, "text.color": INK})
-
-strategies = list(STRATEGIES)
-fig, axes = plt.subplots(2, 3, figsize=(17, 9), dpi=150, sharex=True)
-width = 0.26
-x = np.arange(len(strategies))
-for col, target in enumerate(TARGETS):
-    for row, (metric, label) in enumerate([("r2", "test R²"), ("mae", "test MAE")]):
-        ax = axes[row, col]
-        for k, model_name in enumerate(MODELS):
-            s = summary[(summary.target == target) & (summary.model == model_name)].set_index("strategy")
-            means = s.loc[strategies, f"{metric}_mean"].to_numpy()
-            stds = s.loc[strategies, f"{metric}_std"].fillna(0).to_numpy()
-            ax.bar(x + (k - 1) * width, means, width - 0.03, color=COLORS[model_name], label=model_name,
-                   yerr=stds, error_kw={"ecolor": INK, "elinewidth": 1, "capsize": 2})
-        if metric == "r2":
-            ax.set_ylim(min(0, summary[summary.target == target].r2_mean.min() - 0.05), 1.0)
-            ax.set_title(target, fontsize=12, color=INK)
-        ax.set_ylabel(label)
-        ax.grid(axis="y", color=GRID, linewidth=0.8)
-        ax.set_axisbelow(True)
-        for side in ("top", "right"):
-            ax.spines[side].set_visible(False)
-        ax.axvline(2.5, color=MUTED, linewidth=0.8, linestyle=":")
-        if row == 1:
-            ax.set_xticks(x, [s.replace(" (", "\n(") for s in strategies], rotation=0, fontsize=8)
-axes[0, 0].legend(frameon=False, loc="lower left")
-fig.suptitle("Symbolic regression vs XGBoost vs NN across split strategies\n"
-             "left of dotted line: mean ± std over seeds 0–9 · right: deterministic range-extrapolation splits",
-             fontsize=12, color=INK)
-fig.tight_layout()
-fig.savefig("plots/symbolic_split_comparison.png", dpi=150, bbox_inches="tight")
-print("\nWrote csv/symbolic_split_comparison.csv, csv/symbolic_split_comparison_summary.csv, "
-      "plots/symbolic_split_comparison.png")
+print("\nWrote csv/symbolic_split_comparison.csv and csv/symbolic_split_comparison_summary.csv "
+      "(figure: python scripts/plotting/plot_symbolic_split_comparison.py)")

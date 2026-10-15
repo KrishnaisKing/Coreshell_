@@ -23,19 +23,23 @@ benchmark in `literature_analysis/` (script in `scripts/literature/`), and the O
 
 ```
 scripts/
-├── split_utils.py      # shared: load_dataset(), candidate_split(), random_row_split(), leave_materials_out_split()
-├── nn_model.py          # shared: TabularResNet, NN feature engineering, permutation_importance()
+├── split_utils.py      # shared: load_dataset(), candidate_split(), random_row_split(), leave_materials_out_split(),
+│                        #         feature_range_split()
+├── nn_model.py          # shared: TabularResNet, NN feature engineering, train_tabular_resnet(), permutation_importance()
+├── symbolic_model.py    # shared: physics-constrained sparse symbolic regression (SISSO-style), methodology paper
 ├── pipeline/            # Prepare_real_candidates.py, Latticmatch.py
 ├── training/            # kmeans_xgboost_train.py, nn.py, nn_permutation_importance.py
-├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py
+├── plotting/            # plot.py, plot2.py, plot3.py, plot4.py, plot5.py, plot_symbolic_split_comparison.py
 ├── validation/          # split_strategy_comparison.py, retention_extrapolation_check.py,
 │                        # repeated_split_evaluation.py, physics_sanity_checks.py,
-│                        # multicollinearity_check.py, uncertainty_quantification.py
+│                        # multicollinearity_check.py, uncertainty_quantification.py,
+│                        # symbolic_split_comparison.py
+├── symbolic/            # fit_symbolic.py (methodology paper step 1)
 ├── literature/          # model_vs_experiment.py (Tier 3; reads and writes literature_analysis/)
 └── dataset/             # build_curated_dataset.py (Option B; reads and writes curated_dataset/)
 ```
 
-`split_utils.py`/`nn_model.py` stay directly under `scripts/` rather than in their own subfolder because
+`split_utils.py`/`nn_model.py`/`symbolic_model.py` stay directly under `scripts/` rather than in their own subfolder because
 every other script imports them as siblings. Python only auto-adds a *script's own directory* to its import
 path, not the repo root or sibling folders — so every script under `pipeline/`, `training/`, or
 `validation/` that needs them starts with:
@@ -85,6 +89,9 @@ python scripts/validation/repeated_split_evaluation.py     # re-evaluates the fi
 python scripts/validation/physics_sanity_checks.py         # monotonicity checks (hysteresis vs Nt/barrier height, on-off/retention vs shell thickness) -> csv/physics_sanity_checks.csv, plots/physics_sanity_checks.png
 python scripts/validation/multicollinearity_check.py       # VIF across the full feature set -> csv/multicollinearity_check.csv, plots/multicollinearity_check.png
 python scripts/validation/uncertainty_quantification.py    # 80% prediction intervals via XGBoost quantile regression -> csv/uncertainty_quantification.csv, plots/uncertainty_quantification.png
+python scripts/symbolic/fit_symbolic.py                    # symbolic-regression equations on the seed-42 grouped split -> csv/symbolic_equations.csv, csv/predictions_sr_*.csv (~10s)
+python scripts/validation/symbolic_split_comparison.py     # symbolic vs XGB vs NN, 6 split strategies, seeds 0-9 -> csv/symbolic_split_comparison{,_summary}.csv (~40 min awake, NN-dominated; pauses if the laptop sleeps)
+python scripts/plotting/plot_symbolic_split_comparison.py  # figure for the above, from the summary CSV -> plots/symbolic_split_comparison.png
 python scripts/literature/model_vs_experiment.py           # Tier 3 benchmark vs measured devices -> literature_analysis/{provenance_check,benchmark_inputs,benchmark_results}.csv, model_vs_experiment.png
 python scripts/dataset/build_curated_dataset.py            # Option B: cited material properties -> curated_dataset/candidates.csv (inputs only, labels empty)
 ```
@@ -277,6 +284,72 @@ Known gaps, documented in `curated_dataset/SOURCES.md`:
 - PbS/PbSe lack data.
 - The electron-affinity (Anderson) rule misclassifies GaN/AlN, a known type-I pair, as type II, because
   AlN's χ = 0.6 eV is a surface value.
+
+## Methodology paper: physics-constrained symbolic regression (branch `symbolic-regression`)
+
+The user is writing a **methodology paper** and wants a different approach from the NN + XGBoost pair.
+Chosen direction: sparse symbolic regression, i.e. an explicit equation of at most 3 terms per target.
+Steps 1–2 of the plan are done; the remaining steps are not started:
+3. a recovery test on `curated_dataset/` with labels from a *known* stated equation, to answer "you just
+   reverse-engineered the faculty generator";
+4. uncertainty quantification;
+5. rerunning the Tier 3 literature benchmark.
+
+**Method (`scripts/symbolic_model.py`).** SISSO-style sure-independence screening plus an exhaustive L0
+search over a ~330-descriptor library.
+- **Inputs:** built only from inputs XGB/NN already get (band gaps deliberately excluded, for a fair
+  comparison): |offsets|, `Bmax`/`Bmin` = max/min(|dE_LUMO|, |dE_HOMO|), q·Vmax, t, R, eps, log10 Nt, a Type I
+  indicator, and the WKB exponent κ·t·√B.
+- **Units:** tracked as (eV, nm) exponents. Sums only between like units; exp/log only of dimensionless
+  quantities; sqrt/inverse/log only where the *physical* domain keeps them finite.
+- **Physics constraints:** the expected signs from `physics_sanity_checks.py`, checked as numerical
+  derivatives on the training rows.
+- **Number of terms:** chosen by grouped inner CV on the training set (one-SE rule), never the test set.
+- **Speed:** ~2–4 s per fit.
+
+**Post-hoc library change — disclose it if writing this up.** The first full comparison allowed `exp(+x)`.
+Inner CV picked `exp(lgNt/eps)` on 3 of 30 seeded fits. Some shells have eps ≈ 1.27, so on those test rows
+the term reached ~1e8 and hysteresis R² ≈ −2×10⁴. The fix is a general rule, not a tuned one: the only
+exponential is `exp(-x)` for x ≥ 0, which is bounded in (0, 1]. It changed 10 of 99 symbolic-regression
+fits; XGB/NN rows were bit-identical across both runs. The first run's CSV is not kept in the repo.
+
+**Equations are very stable.** The same 3-term family is selected in ≥9/10 seeds of every seeded strategy,
+and in the range splits, for on/off and retention. The one exception is barrier-range retention, which picks
+`Bmax | Bmax² | t`:
+- on/off: `(lgNt)² | √Bmax | Bmax/lgNt`
+- retention: `√Bmax | Bmax | Bmax²`
+- hysteresis: `qV·lgNt | qV`, plus a third barrier/eps term that varies by seed.
+
+**Audit finding: the retention labels depend on max(|ΔE_c|, |ΔE_v|) alone.** That holds regardless of band
+alignment, with no shell-thickness term. The t-constraints pass only because t is absent ("driver absent"
+in `csv/symbolic_equations.csv`). This is consistent with the Tier 0 evidence that the generator treats
+|offset| as a barrier for every alignment type.
+
+**Results (`csv/symbolic_split_comparison_summary.csv`; seeds 0–9 as mean ± std, range splits single
+deterministic runs).**
+- **In-distribution** (random, leave-materials-out): symbolic regression is clearly worse everywhere.
+  Hysteresis R² 0.84–0.85 vs 0.92–0.95; retention 0.87 vs ~0.98–0.99.
+- **Grouped-by-pair** (offset-space extrapolation): retention R² is **0.848 ± 0.017** for symbolic
+  regression vs XGB 0.733 ± 0.206 and NN 0.217 ± 1.327. The mean is higher and the spread is 12× tighter;
+  symbolic regression has the lowest MAE on 5/10 seeds. On/off is a tie on R² (0.943 vs 0.940), but MAE is
+  worse (0.110 vs 0.089).
+- **Nt range** (top 25% trap density held out): symbolic regression wins clearly where Nt drives the target.
+  On/off R² is **0.677 vs XGB −0.126 / NN 0.014** (MAE 0.13 vs 0.35/0.28). Hysteresis R² is 0.703 vs
+  0.689/0.332.
+- **Barrier range** (top 25% Bmax held out): **symbolic regression fails badly.** The polynomial in Bmax
+  diverges past the training range: retention MAE is 21.8 log10 units and on/off R² 0.03. XGB is near-perfect
+  there because the labels saturate at the target ceiling for high barriers, and a flat tree extrapolation
+  happens to be right. The NN also fails (MAE 14.4).
+- **Thickness range:** symbolic regression is worst (retention R² 0.69). Its equations barely use t, so this
+  split mostly tests what the other models learned about t.
+
+Honest framing: the method's advantage is real but specific. It extrapolates along inputs that enter the
+equation monotonically (Nt), and it is far more seed-stable under the grouped extrapolation split.
+Unconstrained polynomial terms in a variable do not extrapolate, and nothing currently stops the search from
+using them. **Any fix (e.g. a monotonicity or boundedness constraint on Bmax) is now a post-hoc change made
+after seeing the barrier-range test.** It must be motivated by physics stated independently of that result,
+and re-validated on splits not used to motivate it. This is the same contamination issue as the XGBoost
+hyperparameters.
 
 ## Fix/validation roadmap (tiered by priority)
 
