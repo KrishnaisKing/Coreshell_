@@ -96,6 +96,88 @@ class TabularResNet(nn.Module):
         return self.head(x)
 
 
+EPOCHS = 200
+BATCH_SIZE = 128
+LR = 2e-3
+WARMUP_EPOCHS = 40      # don't let patience start counting until training has had a chance to anneal
+PATIENCE = 30            # post-warmup epochs without validation R^2 improvement before stopping
+MIN_DELTA = 1e-4
+
+
+def train_tabular_resnet(X_train, y_train, X_val, y_val, shuffle_seed, log_name=None):
+    """
+    nn.py's training loop: AdamW + cosine annealing, early-stopped on validation R^2
+    with patience counted only after warmup. Model init draws from torch's global RNG,
+    so callers seed it (torch.manual_seed) beforehand. Returns (model with best-epoch
+    weights, best_epoch, stopped_epoch, best_val_r2). log_name=None trains silently.
+    """
+    import time
+    import torch.optim as optim
+
+    X_train_t = torch.tensor(X_train, dtype=torch.float32)
+    y_train_t = torch.tensor(y_train.astype(np.float32).reshape(-1, 1))
+    n_train = len(X_train_t)
+
+    model = TabularResNet(input_dim=X_train.shape[1], hidden_dim=128, num_blocks=2, dropout=0.1)
+    criterion = nn.MSELoss()
+    optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+
+    # Manual index batching instead of DataLoader: the per-batch DataLoader
+    # overhead was a large fraction of step time for a model this small.
+    shuffle_gen = torch.Generator().manual_seed(shuffle_seed)
+    t0 = time.perf_counter()
+    best_val_r2 = -np.inf
+    best_state = None
+    best_epoch = 0
+    epochs_without_improve = 0
+    stopped_epoch = EPOCHS
+
+    for epoch in range(1, EPOCHS + 1):
+        model.train()
+        perm = torch.randperm(n_train, generator=shuffle_gen)
+        epoch_loss = 0.0
+        for i in range(0, n_train, BATCH_SIZE):
+            idx = perm[i:i + BATCH_SIZE]
+            if len(idx) < 2:  # BatchNorm needs >1 sample
+                continue
+            optimizer.zero_grad()
+            loss = criterion(model(X_train_t[idx]), y_train_t[idx])
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item() * len(idx)
+        scheduler.step()
+
+        val_r2 = r2_score(np.ravel(y_val), predict(model, X_val))
+        improved = val_r2 > best_val_r2 + MIN_DELTA
+        if improved:
+            best_val_r2 = val_r2
+            best_epoch = epoch
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+
+        # Patience only starts counting after warmup: with CosineAnnealingLR(T_max=EPOCHS),
+        # the LR hasn't annealed yet in the first ~40 epochs and val R^2 is dominated by
+        # noise from the still-high LR, not genuine convergence -- letting patience run from
+        # epoch 1 stopped training at epoch ~20 in practice, before it had gotten anywhere.
+        if epoch > WARMUP_EPOCHS:
+            epochs_without_improve = 0 if improved else epochs_without_improve + 1
+
+        if log_name and (epoch % 50 == 0 or epoch == 1):
+            print(f"[{log_name}] epoch {epoch:3d}/{EPOCHS}  train MSE = {epoch_loss / n_train:.4f}  "
+                  f"val R^2 = {val_r2:.4f}  best = {best_val_r2:.4f}@{best_epoch}  "
+                  f"({time.perf_counter() - t0:.0f}s elapsed)")
+
+        if epoch > WARMUP_EPOCHS and epochs_without_improve >= PATIENCE:
+            stopped_epoch = epoch
+            if log_name:
+                print(f"[{log_name}] early stopping at epoch {epoch} "
+                      f"(no val R^2 improvement for {PATIENCE} epochs after warmup)")
+            break
+
+    model.load_state_dict(best_state)
+    return model, best_epoch, stopped_epoch, best_val_r2
+
+
 def predict(model, X):
     model.eval()
     with torch.no_grad():

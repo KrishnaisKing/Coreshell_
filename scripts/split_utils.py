@@ -94,6 +94,24 @@ def random_row_split(df, test_frac=0.25, random_state=RANDOM_STATE):
     return df.iloc[train_idx].copy(), df.iloc[test_idx].copy()
 
 
+def feature_range_split(df, column, test_frac=0.25, random_state=None):
+    """
+    Range-extrapolation split: holds out every row whose `column` value is in the
+    top `test_frac` quantile, so the test set lies entirely beyond the training
+    range of that one input. Deterministic (random_state is accepted only to match
+    the other splits' signature).
+
+    This isolates extrapolation along a single input. It is NOT candidate-grouped
+    when `column` varies within a candidate (Nt_cm3, shell_thick_nm are per-row
+    device parameters): the same pair can sit in train at low values and in test at
+    high ones -- by design, so the only thing that's new at test time is the range.
+    For a candidate-level column (e.g. a band offset) it is grouped automatically.
+    """
+    threshold = df[column].quantile(1 - test_frac)
+    is_test = df[column] > threshold
+    return df[~is_test].copy(), df[is_test].copy()
+
+
 def leave_materials_out_split(df, test_frac=0.25, random_state=RANDOM_STATE):
     """
     Holds out entire MATERIALS, not just pairs, so a test-set material never
